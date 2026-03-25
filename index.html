@@ -1208,9 +1208,10 @@
 
         // 更新图表
         function updateChart(){
-            const pts = data.emotions.slice(-12);
+            // 获取最近12条数据并按时间戳排序
+            const pts = data.emotions.slice(-12).sort((a, b) => a.ts - b.ts);
             if(pts.length < 2) return;
-            
+
             const minP = Math.min(...pts.map(x => x.p));
             const maxP = Math.max(...pts.map(x => x.p));
             const range = maxP - minP || 1;
