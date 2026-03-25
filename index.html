@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>情绪云 - 轻量AI情绪陪伴</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cloud: '#E2E8F0', calm: '#7DD3FC', happy: '#FDBA74', sad: '#C4B5FD',
+                        anxious: '#EF4444', gold: '#FCD34D', bgPrimary: '#F8FAFC', bgSecondary: '#F1F5F9',
+                        txtPrimary: '#1E293B', txtSecondary: '#64748B',
+                    },
+                    fontFamily: { sans: ['Noto Sans SC', 'sans-serif'] },
+                    animation: {
+                        float: 'float 4s ease-in-out infinite', pulse: 'pulse 2s infinite', rain: 'rain 1s linear infinite',
+                    },
+                    keyframes: {
+                        float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-15px)' } },
+                        rain: { '0%': { transform: 'translateY(-20px)', opacity: 1 }, '100%': { transform: 'translateY(80px)', opacity: 0 } },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans SC', sans-serif; background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%); min-height: 100vh; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #F1F5F9; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+        .glass { background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.5); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.05); }
+        .nav-item { transition: all 0.3s; }
+        .nav-item.active { color: #7DD3FC; }
+        .nav-item.active::after { content: ''; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 20px; height: 3px; background: linear-gradient(90deg, #7DD3FC, #C4B5FD); border-radius: 2px; }
+        .page { display: none; animation: fadeIn 0.4s; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .cloud-svg { filter: drop-shadow(0 10px 30px rgba(0,0,0,0.1)); cursor: pointer; transition: transform 0.3s; }
+        .cloud-svg:active { transform: scale(0.98); }
+        .cloud-path { transition: fill 1s ease; }
+        .rain-drop { position: absolute; width: 2px; height: 15px; background: linear-gradient(to bottom, transparent, #7DD3FC); border-radius: 50%; animation: rain 0.8s linear infinite; opacity: 0; }
+        .golden-pulse { animation: golden 1.5s ease-out; }
+        @keyframes golden { 0% { opacity: 0; transform: scale(0.5); } 50% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
+        .tap-emoji { position: absolute; font-size: 24px; animation: floatUp 1s ease-out forwards; pointer-events: none; }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(0.5); opacity: 1; } 100% { transform: translateY(-60px) scale(1.2); opacity: 0; } }
+        .memory-card { transition: transform 0.3s, box-shadow 0.3s; }
+        .memory-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px rgba(0,0,0,0.1); }
+        .warning-toast { animation: slideUp 0.5s, shake 0.5s 0.5s; }
+        @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        
+        /* 平静云 - 温柔晃动 + 小雨滴 */
+        @keyframes calmShake { 0%, 100% { transform: translateX(0) rotate(0deg); } 25% { transform: translateX(-3px) rotate(-2deg); } 75% { transform: translateX(3px) rotate(2deg); } }
+        .cloud-calm-tap { animation: calmShake 0.6s ease-in-out; }
+        
+        /* 平静云小雨滴动画 */
+        @keyframes gentleRain {
+            0% { opacity: 0; transform: translateY(-10px) scale(0.5); }
+            20% { opacity: 0.8; }
+            80% { opacity: 0.6; }
+            100% { opacity: 0; transform: translateY(60px) scale(1); }
+        }
+        .gentle-rain { position: absolute; width: 3px; height: 20px; background: linear-gradient(to bottom, transparent, rgba(125,211,252,0.6)); border-radius: 50%; animation: gentleRain 1.5s ease-out forwards; pointer-events: none; }
+        
+        /* 开心云 - 欢快跳动 + 小太阳 */
+        @keyframes happyBounce { 0%, 100% { transform: translateY(0) scale(1); } 30% { transform: translateY(-12px) scale(1.08); } 60% { transform: translateY(-6px) scale(1.04); } }
+        .cloud-happy-tap { animation: happyBounce 0.8s ease-in-out; }
+        
+        /* 开心云小太阳 */
+        @keyframes sunRise {
+            0% { opacity: 0; transform: translateY(20px) scale(0.3); }
+            30% { opacity: 1; transform: translateY(-10px) scale(1); }
+            100% { opacity: 0; transform: translateY(-40px) scale(0.8); }
+        }
+        .sun-particle { position: absolute; font-size: 28px; animation: sunRise 1.5s ease-out forwards; pointer-events: none; }
+        
+        /* 焦虑云 - 震动收缩 + 颜色柔和 */
+        @keyframes anxiousVibrate {
+            0%, 100% { transform: scale(1) translateX(0); }
+            10% { transform: scale(0.95) translateX(-2px); }
+            20% { transform: scale(0.98) translateX(2px); }
+            30% { transform: scale(0.93) translateX(-3px); }
+            40% { transform: scale(0.96) translateX(1px); }
+            50% { transform: scale(0.92) translateX(-2px); }
+            60% { transform: scale(0.95) translateX(2px); }
+            70% { transform: scale(0.94) translateX(-1px); }
+            80% { transform: scale(0.97) translateX(1px); }
+            90% { transform: scale(0.96) translateX(-1px); }
+        }
+        .cloud-anxious-tap { animation: anxiousVibrate 1.2s ease-in-out; }
+        
+        /* 低落云 - 微微下落后上浮 */
+        @keyframes sadFloat {
+            0% { transform: translateY(0); }
+            30% { transform: translateY(8px); }
+            60% { transform: translateY(-4px); }
+            100% { transform: translateY(0); }
+        }
+        .cloud-sad-tap { animation: sadFloat 1.2s ease-in-out; }
+        
+        /* 低落云 - 光点飘落 */
+        @keyframes starFloat { 0% { transform: translateY(0) scale(0); opacity: 0; } 50% { transform: translateY(-30px) scale(1); opacity: 1; } 100% { transform: translateY(-70px) scale(0.5); opacity: 0; } }
+        .star-particle { position: absolute; font-size: 18px; animation: starFloat 1.5s ease-out forwards; pointer-events: none; }
+        
+        /* 开心云 - 小花星光 */
+        @keyframes happyFloat { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(-60px) rotate(25deg); opacity: 0; } }
+        .happy-particle { position: absolute; font-size: 20px; animation: happyFloat 1.2s ease-out forwards; pointer-events: none; }
+        
+        /* 舒缓文字淡入 */
+        @keyframes softFadeIn {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .relax-text { animation: softFadeIn 0.8s ease-out forwards; }
+        
+        /* 温暖提示弹窗 */
+        .warm-tip-show { animation: tipPopIn 0.5s ease-out; }
+        @keyframes tipPopIn { 0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.05); } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+        
+        @media (max-width: 768px) { .mobile-nav { display: flex; } .desktop-sidebar { display: none; } }
+        @media (min-width: 769px) { .mobile-nav { display: none; } }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Desktop Sidebar -->
+    <aside class="desktop-sidebar fixed left-0 top-0 h-full w-56 bg-white/80 backdrop-blur-md border-r border-gray-100 z-50 p-4">
+        <div class="flex items-center gap-3 mb-8">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-calm to-anxious flex items-center justify-center">
+                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </div>
+            <span class="text-lg font-semibold txtPrimary">情绪云</span>
+        </div>
+        <nav class="space-y-1">
+            <button onclick="showPage('home')" class="nav-item active relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-gray-50" data-page="home"><span>☁️</span><span class="txtPrimary text-sm">情绪云</span></button>
+            <button onclick="showPage('dashboard')" class="nav-item relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-gray-50" data-page="dashboard"><span>📊</span><span class="txtPrimary text-sm">数据面板</span></button>
+            <button onclick="showPage('timeline')" class="nav-item relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-gray-50" data-page="timeline"><span>📈</span><span class="txtPrimary text-sm">情绪追踪</span></button>
+            <button onclick="showPage('memories')" class="nav-item relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-gray-50" data-page="memories"><span>✨</span><span class="txtPrimary text-sm">能量罐</span></button>
+            <button onclick="showPage('friends')" class="nav-item relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-gray-50" data-page="friends"><span>💫</span><span class="txtPrimary text-sm">密友</span></button>
+            <button onclick="showPage('profile')" class="nav-item relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-gray-50" data-page="profile"><span>👤</span><span class="txtPrimary text-sm">我的</span></button>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="md:ml-56 min-h-screen pb-20 md:pb-0">
+        <header class="sticky top-0 z-40 bg-white/70 backdrop-blur-md border-b border-gray-100 px-5 py-3 flex items-center justify-between">
+            <div><h1 id="pageTitle" class="text-lg font-semibold txtPrimary">情绪云</h1></div>
+            <button onclick="toggleWearable()" class="p-2 hover:bg-gray-100 rounded-xl"><svg class="w-5 h-5 txtSecondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
+        </header>
+
+        <!-- Home Page -->
+        <div id="page-home" class="page active">
+            <div class="p-5 flex flex-col items-center min-h-[calc(100vh-120px)]">
+                <!-- 小云：当天整体情绪 -->
+                <div class="relative flex flex-col items-center mt-8">
+                    <div id="smallCloudWrapper" class="relative" onclick="tapCloud(event)">
+                        <div id="goldenLayer" class="absolute inset-0 rounded-full opacity-0 pointer-events-none" style="background: radial-gradient(circle, rgba(252,211,77,0.5) 0%, transparent 70%);"></div>
+                        <div id="rainContainer" class="absolute inset-0 overflow-hidden pointer-events-none"></div>
+                        <svg id="cloudSvg" width="400" height="240" viewBox="0 0 200 120" class="cloud-svg transition-all duration-500">
+                            <defs><linearGradient id="cloudGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" id="gradTop" stop-color="#7DD3FC"/><stop offset="100%" id="gradBot" stop-color="#38BDF8"/></linearGradient></defs>
+                            <path id="cloudPath" fill="url(#cloudGrad)" filter="url(#cloudShadow)" d="M50,75 C28,75 20,55 35,42 C32,25 50,16 68,24 C78,10 105,10 118,24 C135,16 155,28 150,46 C168,50 172,68 158,78 C162,92 145,98 128,94 C116,104 88,104 75,94 C56,100 42,86 50,75 Z"/>
+                            <defs>
+                                <filter id="cloudShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="rgba(0,0,0,0.1)"/>
+                                </filter>
+                            </defs>
+                            <g id="face" opacity="0.7"><circle cx="80" cy="52" r="3" fill="#475569"/><circle cx="120" cy="52" r="3" fill="#475569"/><path id="mouth" d="M90 62 Q100 70 110 62" stroke="#475569" stroke-width="2" fill="none" stroke-linecap="round"/></g>
+                        </svg>
+                        <div id="particles" class="absolute inset-0 pointer-events-none"></div>
+                    </div>
+                    <!-- 舒缓文字显示区域 -->
+                    <div id="relaxText" class="hidden mt-3 text-center px-4 py-2 bg-white/60 rounded-xl backdrop-blur-sm">
+                        <span id="relaxTextContent" class="text-sm txtPrimary"></span>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <span id="emotionLabel" class="text-xl font-medium txtPrimary">平静</span>
+                        <p class="text-xs txtSecondary mt-1">点击云朵拍拍它</p>
+                    </div>
+                </div>
+
+                <!-- 情绪切换按钮 -->
+                <div class="flex gap-2 mt-5 flex-wrap justify-center">
+                    <button onclick="setEmotion('calm')" class="px-3 py-1.5 rounded-full bg-calm/20 hover:bg-calm/40 text-calm text-xs font-medium transition">😌 平静</button>
+                    <button onclick="setEmotion('happy')" class="px-3 py-1.5 rounded-full bg-happy/20 hover:bg-happy/40 text-happy text-xs font-medium transition">😊 开心</button>
+                    <button onclick="setEmotion('sad')" class="px-3 py-1.5 rounded-full bg-sad/20 hover:bg-sad/40 text-sad text-xs font-medium transition">😢 低落</button>
+                    <button onclick="setEmotion('anxious')" class="px-3 py-1.5 rounded-full bg-anxious/20 hover:bg-anxious/40 text-anxious text-xs font-medium transition">😰 焦虑</button>
+                </div>
+
+                <!-- 今日摘要 -->
+                <div class="mt-8 w-full max-w-xs">
+                    <div class="glass p-4">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2"><div id="todayDot" class="w-2.5 h-2.5 rounded-full bg-calm"></div><span id="todayText" class="text-sm txtPrimary">已记录</span></div>
+                            <div class="text-right"><span id="todayPressure" class="text-xl font-bold txtPrimary font-mono">65</span><span class="text-xs txtSecondary ml-1">压力</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 温暖提示弹窗 -->
+                <div id="warmTip" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-xl p-5 max-w-sm w-full mx-4 z-50 hidden">
+                    <div class="text-center">
+                        <div class="text-3xl mb-2">💝</div>
+                        <p id="warmTipText" class="text-base txtPrimary font-medium whitespace-pre-line text-left"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Page -->
+        <div id="page-dashboard" class="page">
+            <div class="p-5 space-y-4">
+                <!-- 实时情绪卡片 -->
+                <div id="emotionCard" class="glass p-4 rounded-2xl transition-all duration-500" style="background: linear-gradient(135deg, rgba(125,211,252,0.2), rgba(56,189,248,0.1));">
+                    <div class="flex items-start gap-3">
+                        <div id="emotionIcon" class="text-3xl">😌</div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <span id="currentEmotionLabel" class="text-lg font-medium txtPrimary">平静</span>
+                                <span id="emotionLevel" class="text-xs px-2 py-0.5 rounded-full bg-calm/30 text-calm">状态良好</span>
+                            </div>
+                            <p id="emotionDesc" class="text-xs txtSecondary mt-1">压力值0，交感神经平稳，情绪状态稳定</p>
+                        </div>
+                    </div>
+                    <div id="relaxSuggestion" class="mt-3 pt-3 border-t border-gray-100">
+                        <div class="text-[10px] txtSecondary mb-1">💡 舒缓建议</div>
+                        <p id="suggestionText" class="text-xs txtPrimary">保持当下节奏，适时休息</p>
+                    </div>
+                </div>
+
+                <!-- 压力指数环形图 -->
+                <div class="glass p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-base font-medium txtPrimary">压力指数</h3>
+                        <div id="pressureTooltip" class="hidden absolute z-50 bg-white shadow-lg rounded-xl p-3 text-xs" style="transform: translateY(-60px);">
+                            <div id="tooltipValue" class="font-bold text-lg">0</div>
+                            <div id="tooltipLevel" class="txtSecondary">状态良好</div>
+                            <div class="text-[10px] txtSecondary mt-1">阈值说明：>75 为高度焦虑</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-center">
+                        <div class="relative w-44 h-44" onmouseenter="showPressureTooltip()" onmouseleave="hidePressureTooltip()">
+                            <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
+                                <circle cx="50" cy="50" r="40" fill="none" stroke="#E2E8F0" stroke-width="10"/>
+                                <circle id="pressureCircle" cx="50" cy="50" r="40" fill="none" stroke="#7DD3FC" stroke-width="10" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="251" class="transition-all duration-700 ease-out"/>
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="pressureNum" class="text-4xl font-bold txtPrimary font-mono transition-all duration-300">0</span>
+                                <span class="text-xs txtSecondary">压力值</span>
+                            </div>
+                            <div id="ringGlow" class="absolute inset-0 rounded-full opacity-0 transition-opacity duration-500" style="box-shadow: 0 0 20px currentColor;"></div>
+                        </div>
+                    </div>
+                    <!-- 压力滑动条分段标注 -->
+                    <div class="mt-6">
+                        <input type="range" id="pSlider" min="0" max="100" value="0" class="w-full h-3 rounded-full appearance-none cursor-pointer" style="background: linear-gradient(to right, #7DD3FC 0%, #7DD3FC 30%, #4ADE80 30%, #4ADE80 50%, #FDBA74 50%, #FDBA74 75%, #FCA5A5 75%, #FCA5A5 100%);" oninput="updatePressure(this.value)">
+                        <div class="flex justify-between mt-2 text-[10px]">
+                            <span class="text-calm">0-30 放松</span>
+                            <span class="text-green-500">30-50 平稳</span>
+                            <span class="text-orange-500">50-75 紧张</span>
+                            <span class="text-sad">75-100 焦虑</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 情绪效价 & 唤醒度 -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="glass p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="text-xl">💗</div>
+                            <div class="text-xs txtSecondary">情绪效价</div>
+                        </div>
+                        <div id="valenceNum" class="text-2xl font-bold txtPrimary font-mono transition-all duration-300">0.50</div>
+                        <div class="text-[10px] txtSecondary mt-1">数值越高，情绪越积极</div>
+                        <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div id="valenceBar" class="h-full bg-gradient-to-r from-sad to-happy transition-all duration-500" style="width: 50%"></div>
+                        </div>
+                    </div>
+                    <div class="glass p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="text-xl">⚡</div>
+                            <div class="text-xs txtSecondary">唤醒度</div>
+                        </div>
+                        <div id="arousalNum" class="text-2xl font-bold txtPrimary font-mono transition-all duration-300">50</div>
+                        <div class="text-[10px] txtSecondary mt-1">数值越高，情绪越激动</div>
+                        <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div id="arousalBar" class="h-full bg-gradient-to-r from-calm to-anxious transition-all duration-500" style="width: 50%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 今日情绪轨迹 -->
+                <div class="glass p-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-sm font-medium txtPrimary">今日情绪轨迹</h3>
+                        <span id="trajectoryTrend" class="text-[10px] txtSecondary">等待数据...</span>
+                    </div>
+                    <div class="h-36 relative" id="chartContainer">
+                        <svg id="chartSvg" class="w-full h-full" viewBox="0 0 300 120">
+                            <line x1="20" y1="20" x2="280" y2="20" stroke="#E2E8F0" stroke-width="1"/>
+                            <line x1="20" y1="60" x2="280" y2="60" stroke="#E2E8F0" stroke-width="1"/>
+                            <line x1="20" y1="100" x2="280" y2="100" stroke="#E2E8F0" stroke-width="1"/>
+                            <text x="15" y="24" font-size="7" fill="#94A3B8" text-anchor="end">100</text>
+                            <text x="15" y="64" font-size="7" fill="#94A3B8" text-anchor="end">50</text>
+                            <text x="15" y="104" font-size="7" fill="#94A3B8" text-anchor="end">0</text>
+                            <path id="chartPath" fill="none" stroke="#7DD3FC" stroke-width="2.5" stroke-linecap="round"/>
+                            <g id="chartDots"></g>
+                            <g id="chartHoverArea"></g>
+                        </svg>
+                        <!-- 悬浮提示框 -->
+                        <div id="chartTooltip" class="hidden absolute bg-white shadow-lg rounded-lg p-2 text-xs z-20" style="pointer-events: none;">
+                            <div id="tooltipTime" class="font-medium txtPrimary"></div>
+                            <div id="tooltipEmotion" class="txtSecondary"></div>
+                            <div id="tooltipPressure" class="txtSecondary"></div>
+                        </div>
+                    </div>
+                    <!-- 颜色图例 -->
+                    <div class="flex justify-center gap-4 mt-2">
+                        <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-calm"></div><span class="text-[10px] txtSecondary">平静</span></div>
+                        <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-happy"></div><span class="text-[10px] txtSecondary">开心</span></div>
+                        <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-sad"></div><span class="text-[10px] txtSecondary">低落</span></div>
+                        <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-anxious"></div><span class="text-[10px] txtSecondary">焦虑</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Page -->
+        <div id="page-timeline" class="page">
+            <div class="p-5 space-y-4">
+                <!-- 标签切换 -->
+                <div class="flex gap-1 bg-white/50 rounded-xl p-1">
+                    <button onclick="switchView('week')" id="tabWeek" class="view-btn flex-1 py-2 rounded-lg text-xs font-medium bg-white shadow-sm" data-v="week">本周</button>
+                    <button onclick="switchView('month')" id="tabMonth" class="view-btn flex-1 py-2 rounded-lg text-xs font-medium txtSecondary" data-v="month">本月</button>
+                </div>
+                
+                <!-- 周视图 -->
+                <div id="weekView">
+                    <!-- 周报 Dashboard -->
+                    <div class="glass p-4 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-sm font-medium txtPrimary">📊 本周情绪周报</h3>
+                            <span class="text-[10px] txtSecondary">示例数据</span>
+                        </div>
+                        
+                        <!-- 情绪趋势曲线图 -->
+                        <div class="relative">
+                            <svg id="weekChart" class="w-full h-40" viewBox="0 0 300 120">
+                                <line x1="30" y1="20" x2="290" y2="20" stroke="#E2E8F0" stroke-width="1"/>
+                                <line x1="30" y1="60" x2="290" y2="60" stroke="#E2E8F0" stroke-width="1"/>
+                                <line x1="30" y1="100" x2="290" y2="100" stroke="#E2E8F0" stroke-width="1"/>
+                                <text x="20" y="24" font-size="8" fill="#94A3B8" text-anchor="end">100</text>
+                                <text x="20" y="64" font-size="8" fill="#94A3B8" text-anchor="end">50</text>
+                                <text x="20" y="104" font-size="8" fill="#94A3B8" text-anchor="end">0</text>
+                                <line x1="30" y1="36" x2="290" y2="36" stroke="#EF4444" stroke-width="1" stroke-dasharray="4"/>
+                                <text x="295" y="40" font-size="7" fill="#EF4444">预警</text>
+                                <path id="weekCurve" fill="none" stroke="url(#weekGrad)" stroke-width="3" stroke-linecap="round"/>
+                                <g id="weekPoints"></g>
+                                <defs><linearGradient id="weekGrad" x1="0%" y1="0%" x2="100%"><stop offset="0%" stop-color="#7DD3FC"/><stop offset="100%" stop-color="#C4B5FD"/></linearGradient></defs>
+                            </svg>
+                        </div>
+                        
+                        <!-- 每日小结 -->
+                        <div class="grid grid-cols-7 gap-1 text-center">
+                            <div class="text-center"><div class="text-[10px] txtSecondary">周一</div><div class="text-xs font-medium text-happy">30</div><div class="text-[9px] text-gray-400">☀️ 晴朗</div></div>
+                            <div class="text-center"><div class="text-[10px] txtSecondary">周二</div><div class="text-xs font-medium text-happy">35</div><div class="text-[9px] text-gray-400">🍰 小确幸</div></div>
+                            <div class="text-center"><div class="text-[10px] txtSecondary">周三</div><div class="text-xs font-medium text-orange-500">40</div><div class="text-[9px] text-gray-400">📚 忙碌</div></div>
+                            <div class="text-center"><div class="text-[10px] txtSecondary">周四</div><div class="text-xs font-medium text-happy">28</div><div class="text-[9px] text-gray-400">💪 充实</div></div>
+                            <div class="text-center"><div class="text-[10px] txtSecondary">周五</div><div class="text-xs font-medium text-happy">32</div><div class="text-[9px] text-gray-400">🎬 期待</div></div>
+                            <div class="text-center"><div class="text-[10px] txtSecondary">周六</div><div class="text-xs font-medium text-calm">25</div><div class="text-[9px] text-gray-400">😌 放松</div></div>
+                            <div class="text-center"><div class="text-[10px] txtSecondary">周日</div><div class="text-xs font-medium text-calm">22</div><div class="text-[9px] text-gray-400">🌙 宁静</div></div>
+                        </div>
+                        
+                        <!-- 情绪统计占比 -->
+                        <div class="flex justify-center gap-4">
+                            <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-happy"></div><span class="text-[10px] txtSecondary">开心 35%</span></div>
+                            <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-calm"></div><span class="text-[10px] txtSecondary">平静 30%</span></div>
+                            <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-anxious"></div><span class="text-[10px] txtSecondary">焦虑 20%</span></div>
+                            <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-sad"></div><span class="text-[10px] txtSecondary">低落 15%</span></div>
+                        </div>
+                        
+                        <!-- 预警提示 -->
+                        <div id="weekWarning" class="bg-orange-50 border border-orange-200 rounded-xl p-3">
+                            <div class="flex items-start gap-2">
+                                <span class="text-lg">⚠️</span>
+                                <div class="flex-1">
+                                    <div class="text-sm font-medium text-orange-600">情绪预警提醒</div>
+                                    <div class="text-xs text-orange-500 mt-1">检测到你近三天情绪有缓慢上升趋势（30→35→40），是否愿意回顾一下最近发生的事情？我们可以一起看看情绪慢慢变化的原因，及时调整～</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 整体状态 -->
+                        <div class="text-center py-2 px-3 bg-gradient-to-r from-calm/20 to-sad/20 rounded-xl">
+                            <span class="text-sm txtPrimary">整体状态：</span><span class="text-sm font-medium text-calm">本周情绪波动正常，周末趋于平稳～</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 月视图 -->
+                <div id="monthView" class="hidden space-y-4">
+                    <!-- 月报 Dashboard -->
+                    <div class="glass p-4 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-sm font-medium txtPrimary">📈 本月情绪月报</h3>
+                            <span class="text-[10px] txtSecondary">示例数据</span>
+                        </div>
+                        
+                        <!-- 30天情绪波动折线图 -->
+                        <div class="relative">
+                            <svg id="monthChart" class="w-full h-40" viewBox="0 0 300 100">
+                                <defs>
+                                    <linearGradient id="monthGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#7DD3FC" stop-opacity="0.4"/>
+                                        <stop offset="100%" stop-color="#7DD3FC" stop-opacity="0.05"/>
+                                    </linearGradient>
+                                </defs>
+                                <path id="monthArea" fill="url(#monthGrad)" stroke="none"/>
+                                <path id="monthCurve" fill="none" stroke="#7DD3FC" stroke-width="2" stroke-linecap="round"/>
+                                <g id="monthPoints"></g>
+                            </svg>
+                        </div>
+                        
+                        <!-- 月度情绪小结 -->
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="bg-gray-50 rounded-lg p-2"><div class="text-lg font-bold text-calm font-mono">32</div><div class="text-[9px] txtSecondary">平均情绪值</div></div>
+                            <div class="bg-gray-50 rounded-lg p-2"><div class="text-lg font-bold text-orange-500 font-mono">第2周</div><div class="text-[9px] txtSecondary">波动最大</div></div>
+                            <div class="bg-gray-50 rounded-lg p-2"><div class="text-lg font-bold text-happy font-mono">平静</div><div class="text-[9px] txtSecondary">高频情绪</div></div>
+                        </div>
+                        
+                        <!-- 情绪分布柱状图 -->
+                        <div>
+                            <div class="text-xs txtSecondary mb-2">情绪分布</div>
+                            <div class="space-y-1.5">
+                                <div class="flex items-center gap-2"><span class="text-[10px] w-8">开心</span><div class="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-happy rounded-full" style="width:35%"></div></div><span class="text-[10px] txtSecondary">35%</span></div>
+                                <div class="flex items-center gap-2"><span class="text-[10px] w-8">平静</span><div class="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-calm rounded-full" style="width:30%"></div></div><span class="text-[10px] txtSecondary">30%</span></div>
+                                <div class="flex items-center gap-2"><span class="text-[10px] w-8">低落</span><div class="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-sad rounded-full" style="width:20%"></div></div><span class="text-[10px] txtSecondary">20%</span></div>
+                                <div class="flex items-center gap-2"><span class="text-[10px] w-8">焦虑</span><div class="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-anxious rounded-full" style="width:15%"></div></div><span class="text-[10px] txtSecondary">15%</span></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 长期预警提示 -->
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-3">
+                            <div class="flex items-start gap-2">
+                                <span class="text-lg">📊</span>
+                                <div class="flex-1">
+                                    <div class="text-sm font-medium text-red-600">长期趋势提醒</div>
+                                    <div class="text-xs text-red-500 mt-1">本月低落情绪占比 20%，建议关注情绪变化。多记录温暖小事可以帮助改善情绪哦～</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 整体状态 -->
+                        <div class="text-center py-2 px-3 bg-gradient-to-r from-happy/20 to-calm/20 rounded-xl">
+                            <span class="text-sm txtPrimary">整体状态：</span><span class="text-sm font-medium text-calm">本月整体平稳，偶有波动属于正常范围～</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 日历面板 -->
+                    <div class="glass p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-sm font-medium txtPrimary">📅 点击日期查看详情</h3>
+                        </div>
+                        <div class="grid grid-cols-7 gap-1 text-center text-[10px] txtSecondary mb-2"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
+                        <div id="calGrid" class="grid grid-cols-7 gap-1"></div>
+                        <div class="flex gap-3 mt-3 justify-center">
+                            <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-happy"></div><span class="text-[10px] txtSecondary">开心</span></div>
+                            <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-calm"></div><span class="text-[10px] txtSecondary">平静</span></div>
+                            <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-sad"></div><span class="text-[10px] txtSecondary">低落</span></div>
+                            <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-anxious"></div><span class="text-[10px] txtSecondary">焦虑</span></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 日期详情面板 -->
+                    <div id="dayDetail" class="hidden glass p-4 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-sm font-medium txtPrimary" id="detailDate">3月15日 周三</h3>
+                            <button onclick="closeDayDetail()" class="txtSecondary text-xs">✕ 关闭</button>
+                        </div>
+                        <!-- 当日情绪曲线 -->
+                        <div class="h-24 relative">
+                            <svg id="dayChart" class="w-full h-full" viewBox="0 0 200 60">
+                                <line x1="10" y1="10" x2="190" y2="10" stroke="#E2E8F0" stroke-width="1"/>
+                                <line x1="10" y1="30" x2="190" y2="30" stroke="#E2E8F0" stroke-width="1"/>
+                                <line x1="10" y1="50" x2="190" y2="50" stroke="#E2E8F0" stroke-width="1"/>
+                                <path id="dayCurve" fill="none" stroke="url(#weekGrad)" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <!-- 当日情绪标签 -->
+                        <div id="dayEmotionTags" class="flex flex-wrap gap-1.5">
+                            <span class="px-2 py-0.5 rounded-full bg-sad/30 text-sad text-[10px]">低落</span>
+                            <span class="px-2 py-0.5 rounded-full bg-anxious/30 text-anxious text-[10px]">焦虑</span>
+                            <span class="px-2 py-0.5 rounded-full bg-happy/30 text-happy text-[10px]">开心</span>
+                        </div>
+                        <!-- 预警记录 -->
+                        <div id="dayWarning" class="bg-orange-50 rounded-lg p-2 text-xs">
+                            <span class="text-orange-500">⚠️ 14:00 触发轻度焦虑预警（连续工作4小时）</span>
+                        </div>
+                        <!-- 关联温暖小事 -->
+                        <div id="dayMemory" class="bg-gold/20 rounded-lg p-2">
+                            <div class="text-[10px] txtSecondary mb-1">💝 关联温暖小事</div>
+                            <div class="text-xs txtPrimary">午后的阳光很温暖，心情也跟着好起来了</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 情绪统计 -->
+                <div class="glass p-4">
+                    <h3 class="text-sm font-medium txtPrimary mb-2">情绪统计</h3>
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        <div><div id="statHappy" class="text-lg font-bold text-happy font-mono">0</div><div class="text-[10px] txtSecondary">开心</div></div>
+                        <div><div id="statCalm" class="text-lg font-bold text-calm font-mono">0</div><div class="text-[10px] txtSecondary">平静</div></div>
+                        <div><div id="statSad" class="text-lg font-bold text-sad font-mono">0</div><div class="text-[10px] txtSecondary">低落</div></div>
+                        <div><div id="statAnxious" class="text-lg font-bold text-anxious font-mono">0</div><div class="text-[10px] txtSecondary">焦虑</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memories Page -->
+        <div id="page-memories" class="page">
+            <div class="p-5 space-y-4">
+                <div class="flex justify-between items-center">
+                    <div><h2 class="text-lg font-semibold txtPrimary">能量罐</h2><p class="text-xs txtSecondary">记录温暖的瞬间</p></div>
+                    <div class="text-right"><span id="memCount" class="text-2xl font-bold text-gold font-mono">0</span><span class="text-xs txtSecondary block">温暖碎片</span></div>
+                </div>
+                <button onclick="openMemModal()" class="w-full py-4 border-2 border-dashed border-gray-300 rounded-2xl txtSecondary hover:border-gold hover:text-gold transition flex items-center justify-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    添加温暖记忆
+                </button>
+                <div id="memGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+            </div>
+        </div>
+
+        <!-- Friends Page -->
+        <div id="page-friends" class="page">
+            <div class="p-5 space-y-4">
+                <div><h2 class="text-lg font-semibold txtPrimary">密友</h2><p class="text-xs txtSecondary">零文字的温暖陪伴</p></div>
+                <div id="friendList" class="space-y-3"></div>
+                <!-- 添加密友按钮 -->
+                <button onclick="openAddFriendModal()" class="w-full py-3 border-2 border-dashed border-gray-300 rounded-2xl txtSecondary hover:border-gold hover:text-gold transition flex items-center justify-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    添加密友
+                </button>
+            </div>
+        </div>
+        
+        <!-- 添加密友弹窗 -->
+        <div id="addFriendModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+            <div class="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-base font-semibold txtPrimary">添加密友</h3>
+                    <button onclick="closeAddFriendModal()" class="txtSecondary">✕</button>
+                </div>
+                <!-- 切换选项 -->
+                <div class="flex gap-1 bg-gray-100 rounded-lg p-1">
+                    <button onclick="switchAddType('search')" id="tabSearch" class="flex-1 py-2 rounded-lg text-sm font-medium bg-white shadow-sm">搜索ID</button>
+                    <button onclick="switchAddType('nearby')" id="tabNearby" class="flex-1 py-2 rounded-lg text-sm font-medium txtSecondary">附近的人</button>
+                </div>
+                <!-- 搜索ID界面 -->
+                <div id="searchPanel">
+                    <input type="text" id="searchId" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm" placeholder="输入对方ID搜索">
+                    <button onclick="searchFriend()" class="w-full mt-2 py-2 bg-gradient-to-r from-calm to-anxious rounded-xl text-white text-sm">搜索</button>
+                    <div id="searchResult" class="mt-3"></div>
+                </div>
+                <!-- 附近的人界面 -->
+                <div id="nearbyPanel" class="hidden">
+                    <div class="text-center py-4 text-sm txtSecondary">
+                        <p>📍 正在获取位置...</p>
+                        <p class="mt-1 text-xs">（模拟数据）</p>
+                    </div>
+                    <div id="nearbyList" class="space-y-2 max-h-48 overflow-y-auto">
+                        <div class="glass p-3 flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-pink-200 flex items-center justify-center">🐱</div>
+                            <div class="flex-1"><div class="text-sm font-medium txtPrimary">小米</div><div class="text-xs txtSecondary">开心 ☀️</div></div>
+                            <button onclick="sendRequest(this)" class="px-2 py-1 rounded-full bg-gold/20 text-gold text-xs">加好友</button>
+                        </div>
+                        <div class="glass p-3 flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center">🐶</div>
+                            <div class="flex-1"><div class="text-sm font-medium txtPrimary">豆豆</div><div class="text-xs txtSecondary">平静 😌</div></div>
+                            <button onclick="sendRequest(this)" class="px-2 py-1 rounded-full bg-gold/20 text-gold text-xs">加好友</button>
+                        </div>
+                    </div>
+                    <p class="text-[10px] txtSecondary text-center mt-2">附近的人功能为模拟展示</p>
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <button onclick="closeAddFriendModal()" class="flex-1 py-2 bg-gray-100 rounded-xl txtSecondary text-sm">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Page -->
+        <div id="page-profile" class="page">
+            <div class="p-5 space-y-4">
+                <div class="glass p-5 text-center">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-calm to-anxious flex items-center justify-center text-2xl text-white mb-3">😊</div>
+                    <h2 class="text-lg font-semibold txtPrimary">小云朵</h2>
+                    <p class="text-xs txtSecondary mt-1">记录情绪的第 <span id="trackDays">1</span> 天</p>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="glass p-4 text-center"><div id="statEmotions" class="text-xl font-bold text-calm font-mono">0</div><div class="text-[10px] txtSecondary">情绪记录</div></div>
+                    <div class="glass p-4 text-center"><div id="statMemories" class="text-xl font-bold text-happy font-mono">0</div><div class="text-[10px] txtSecondary">温暖记忆</div></div>
+                </div>
+                <div class="glass p-4 space-y-3">
+                    <h3 class="text-sm font-medium txtPrimary">设置</h3>
+                    <div class="flex items-center justify-between py-2"><span class="text-sm txtPrimary">可穿戴设备模拟</span><button onclick="toggleWearable()" id="wearBtn" class="w-10 h-5 rounded-full bg-gray-200 transition relative"><div class="absolute w-4 h-4 bg-white rounded-full top-0.5 left-0.5 transition shadow"></div></button></div>
+                    <div class="flex items-center justify-between py-2"><span class="text-sm txtPrimary">情绪提醒</span><button onclick="toggleNotif()" id="notifBtn" class="w-10 h-5 rounded-full bg-calm transition relative"><div class="absolute w-4 h-4 bg-white rounded-full top-0.5 right-0.5 transition shadow"></div></button></div>
+                    <button onclick="exportData()" class="w-full py-2 bg-bgSecondary rounded-lg text-sm txtPrimary hover:bg-gray-200">📤 导出数据</button>
+                    <button onclick="clearData()" class="w-full py-2 bg-red-50 rounded-lg text-sm text-red-500 hover:bg-red-100">🗑️ 清空数据</button>
+                </div>
+                <div id="wearPanel" class="hidden glass p-4 space-y-3">
+                    <h3 class="text-sm font-medium txtPrimary">📱 设备数据</h3>
+                    <div><label class="text-xs txtSecondary">心率 <span id="hrVal" class="font-mono">75</span> bpm</label><input type="range" min="60" max="120" value="75" class="w-full accent-calm" oninput="document.getElementById('hrVal').textContent=this.value"></div>
+                    <div><label class="text-xs txtSecondary">HRV <span id="hrvVal" class="font-mono">45</span> ms</label><input type="range" min="20" max="100" value="45" class="w-full accent-anxious" oninput="document.getElementById('hrvVal').textContent=this.value"></div>
+                    <div><label class="text-xs txtSecondary">压力 <span id="strVal" class="font-mono">50</span></label><input type="range" min="0" max="100" value="50" class="w-full accent-sad" oninput="document.getElementById('strVal').textContent=this.value"></div>
+                    <button onclick="simData()" class="w-full py-2 bg-gradient-to-r from-calm to-anxious rounded-lg text-white text-sm">✨ 模拟数据</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Mobile Nav -->
+    <nav class="mobile-nav fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-100 z-50 px-1 py-1.5">
+        <div class="flex justify-around">
+            <button onclick="showPage('home')" class="nav-item relative flex flex-col items-center py-1.5 px-2" data-page="home"><span class="text-lg">☁️</span><span class="text-[10px] txtSecondary">云</span></button>
+            <button onclick="showPage('dashboard')" class="nav-item relative flex flex-col items-center py-1.5 px-2" data-page="dashboard"><span class="text-lg">📊</span><span class="text-[10px] txtSecondary">数据</span></button>
+            <button onclick="showPage('timeline')" class="nav-item relative flex flex-col items-center py-1.5 px-2" data-page="timeline"><span class="text-lg">📈</span><span class="text-[10px] txtSecondary">追踪</span></button>
+            <button onclick="showPage('memories')" class="nav-item relative flex flex-col items-center py-1.5 px-2" data-page="memories"><span class="text-lg">✨</span><span class="text-[10px] txtSecondary">罐</span></button>
+            <button onclick="showPage('friends')" class="nav-item relative flex flex-col items-center py-1.5 px-2" data-page="friends"><span class="text-lg">💫</span><span class="text-[10px] txtSecondary">友</span></button>
+            <button onclick="showPage('profile')" class="nav-item relative flex flex-col items-center py-1.5 px-2" data-page="profile"><span class="text-lg">👤</span><span class="text-[10px] txtSecondary">我的</span></button>
+        </div>
+    </nav>
+
+    <!-- Memory Modal -->
+    <div id="memModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-5 space-y-3 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-base font-semibold txtPrimary">添加温暖记忆</h3>
+            <!-- 快速分类标签 -->
+            <div class="flex flex-wrap gap-1.5">
+                <button onclick="selCategory('陌生人的善意')" class="cat-btn px-2 py-1 rounded-full text-[10px] bg-gray-100 txtSecondary hover:bg-sad/20 hover:text-sad transition" data-cat="陌生人的善意">陌生人的善意</button>
+                <button onclick="selCategory('可爱的小动物')" class="cat-btn px-2 py-1 rounded-full text-[10px] bg-gray-100 txtSecondary hover:bg-happy/20 hover:text-happy transition" data-cat="可爱的小动物">可爱的小动物</button>
+                <button onclick="selCategory('美丽的风景')" class="cat-btn px-2 py-1 rounded-full text-[10px] bg-gray-100 txtSecondary hover:bg-calm/20 hover:text-calm transition" data-cat="美丽的风景">美丽的风景</button>
+                <button onclick="selCategory('吃到美食')" class="cat-btn px-2 py-1 rounded-full text-[10px] bg-gray-100 txtSecondary hover:bg-gold/20 hover:text-gold transition" data-cat="吃到美食">吃到美食</button>
+                <button onclick="selCategory('完成小目标')" class="cat-btn px-2 py-1 rounded-full text-[10px] bg-gray-100 txtSecondary hover:bg-anxious/20 hover:text-anxious transition" data-cat="完成小目标">完成小目标</button>
+                <button onclick="selCategory('家人朋友的温暖')" class="cat-btn px-2 py-1 rounded-full text-[10px] bg-gray-100 txtSecondary hover:bg-love/20 hover:text-rose-500 transition" data-cat="家人朋友的温暖">家人朋友的温暖</button>
+                <button onclick="selCategory('自我鼓励与成长')" class="cat-btn px-2 py-1 rounded-full text-[10px] bg-gray-100 txtSecondary hover:bg-purple-500/20 hover:text-purple-500 transition" data-cat="自我鼓励与成长">自我鼓励与成长</button>
+                <button onclick="selCategory('其他小确幸')" class="cat-btn px-2 py-1 rounded-full text-[10px] bg-gray-100 txtSecondary hover:bg-gray-400 hover:text-gray-600 transition" data-cat="其他小确幸">其他小确幸</button>
+            </div>
+            <input type="text" id="memTitle" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm" placeholder="标题（选填）">
+            <textarea id="memContent" rows="3" class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none" placeholder="记录这个温暖的时刻..."></textarea>
+            <!-- 图片上传 -->
+            <div class="flex items-center gap-2">
+                <label class="flex-1 py-2 border-2 border-dashed border-gray-200 rounded-xl text-sm txtSecondary text-center cursor-pointer hover:border-gold hover:text-gold transition">
+                    <input type="file" id="memImage" class="hidden" accept="image/*" onchange="previewImage(this)">
+                    <span id="imgLabel">📷 添加照片（选填）</span>
+                </label>
+                <button onclick="clearImage()" id="clearImgBtn" class="hidden px-2 py-2 text-xs txtSecondary hover:text-red-500">✕</button>
+            </div>
+            <div id="imgPreview" class="hidden rounded-lg overflow-hidden">
+                <img id="previewImg" class="w-full aspect-video object-cover" src="">
+            </div>
+            <div class="flex gap-2 pt-1"><button onclick="closeMemModal()" class="flex-1 py-2 bg-gray-100 rounded-xl txtSecondary text-sm">取消</button><button onclick="saveMem()" class="flex-1 py-2 bg-gradient-to-r from-calm to-anxious rounded-xl text-white text-sm">保存</button></div>
+        </div>
+    </div>
+
+    <!-- Warning Toast -->
+    <div id="warnToast" class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-lg p-3 max-w-xs w-full mx-4 hidden z-50 warning-toast">
+        <div class="flex items-center gap-2"><span class="text-xl">💭</span><div class="flex-1"><h4 class="font-medium txtPrimary text-sm">温馨提示</h4><p id="warnMsg" class="text-xs txtSecondary">今天有点累了呢~</p></div><button onclick="dismissWarn()" class="txtSecondary">✕</button></div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'emotionCloudData';
+        // 情绪颜色：平静=淡蓝、开心=暖橙、低落=灰紫、焦虑=红色
+        const emotionColors = { 
+            calm: {g:['#7DD3FC','#38BDF8'],l:'平静',label:'淡蓝'}, 
+            happy: {g:['#FDBA74','#FB923C'],l:'开心',label:'暖橙'}, 
+            sad: {g:['#C4B5FD','#A78BFA'],l:'低落',label:'灰紫'}, 
+            anxious: {g:['#EF4444','#DC2626'],l:'焦虑',label:'红色'}, 
+            neutral: {g:['#E2E8F0','#CBD5E1'],l:'一般',label:'灰白'} 
+        };
+        // 温暖提示语
+        const warmTips = ['今天很棒！你已经很努力了', '给自己一个拥抱吧', '记得，你很重要', '每一步都在前进', '休息一下也没关系', '你是独一无二的', '今天也要开心呀', '相信自己的力量', '一切都会好起来的', '给自己一个微笑'];
+        
+        let data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {emotions:[],memories:[],friends:[{id:1,name:'夏至未至',e:'🐕',s:'sad',t:Date.now()}],set:{w:false,n:true},c:'calm',p:65,v:0.3,a:45,start:Date.now()};
+        // 强制只保留夏至未至
+        if(data.friends) data.friends = [{id:1,name:'夏至未至',e:'🐕',s:'sad',t:Date.now()}];
+        
+        function init() {
+            // 检查是否需要重置数据（如果数据量太少或格式不对）
+            const stored = localStorage.getItem(STORAGE_KEY);
+            let parsed = stored ? JSON.parse(stored) : null;
+            
+            // 强制将密友改为夏至未至
+            parsed = parsed || {};
+            parsed.friends = [{id:1,name:'夏至未至',e:'🐕',s:'sad',t:Date.now()}];
+            localStorage.setItem(STORAGE_KEY,JSON.stringify(parsed));
+            
+            const needsReset = !parsed || !parsed.emotions || parsed.emotions.length < 50;
+            
+            if(needsReset){
+                // 重置为默认结构
+                data = {emotions:[],memories:[],friends:[{id:1,name:'夏至未至',e:'🐕',s:'sad',t:Date.now()}],set:{w:false,n:true},c:'calm',p:65,v:0.3,a:45,start:Date.now()};
+                
+                // 模拟30天的情绪数据
+                const emotions = [];
+                const emotionTypes = ['calm','happy','sad','anxious'];
+                for(let day=29;day>=0;day--){
+                    // 每天3-5个数据点
+                    const pointsPerDay = 3 + Math.floor(Math.random()*3);
+                    for(let h=0; h<pointsPerDay; h++){
+                        const hour = Math.floor(h * (24/pointsPerDay));
+                        // 模拟更真实的情绪波动 - 早上较平静，晚上可能低落
+                        let e;
+                        if(hour >= 6 && hour <= 9) e = Math.random() > 0.3 ? 'calm' : 'happy';
+                        else if(hour >= 10 && hour <= 12) e = Math.random() > 0.4 ? 'happy' : 'calm';
+                        else if(hour >= 13 && hour <= 17) e = Math.random() > 0.5 ? 'happy' : (Math.random() > 0.5 ? 'calm' : 'anxious');
+                        else if(hour >= 18 && hour <= 20) e = Math.random() > 0.4 ? 'happy' : 'calm';
+                        else e = Math.random() > 0.6 ? 'sad' : (Math.random() > 0.5 ? 'anxious' : 'calm');
+                        const p = e==='sad'?55+Math.floor(Math.random()*35):e==='anxious'?45+Math.floor(Math.random()*40):e==='happy'?20+Math.floor(Math.random()*30):25+Math.floor(Math.random()*30);
+                        emotions.push({ts:Date.now()-day*86400000-hour*3600000,e:e,p:p,v:Math.random()*1.4-0.7,a:Math.floor(Math.random()*50+25)});
+                    }
+                }
+                data.emotions = emotions;
+                
+                // 更多温暖的记忆
+                const now = Date.now();
+                data.memories = [
+                    {id:1,t:'晨跑遇见彩虹',c:'清晨跑步时，雨后天空出现了彩虹，瞬间心情被点亮！',m:'happy',d:now-3600000},
+                    {id:2,t:'外卖小哥的微笑',c:'下雨天点外卖，小哥全身湿透却笑着说"祝您用餐愉快"，鼻子一酸',m:'grateful',d:now-7200000},
+                    {id:3,t:'老友来电',c:'很久没联系的高中同学突然打电话聊了1小时，回忆满满',m:'love',d:now-14400000},
+                    {id:4,t:'解出一道难题',c:'卡了半天的编程题终于想通了，那种成就感太棒了！',m:'happy',d:now-28800000},
+                    {id:5,t:'陌生人帮忙扶门',c:'双手拿快递时有人帮忙扶了一下电梯门，温暖',m:'grateful',d:now-43200000},
+                    {id:6,t:'猫咪的蹭蹭',c:'流浪猫主动过来蹭腿，瞬间被治愈',m:'calm',d:now-57600000},
+                    {id:7,t:'吃到妈妈做的饭',c:'周末回家，妈妈做了一桌子我爱吃的菜',m:'love',d:now-72000000},
+                    {id:8,t:'陌生人捡起掉的东西',c:'不小心掉了东西，后面的人帮忙捡起来',m:'grateful',d:now-108000000},
+                    {id:9,t:'看到绝美日落',c:'放学路上遇到粉紫色的晚霞，忍不住拍了下来',m:'calm',d:now-144000000},
+                    {id:10,t:'完成目标',c:'坚持打卡30天终于完成，很有成就感',m:'happy',d:now-180000000},
+                    {id:11,t:'收到惊喜',c:'好朋友偷偷寄来的生日礼物，太感动了',m:'love',d:now-216000000},
+                    {id:12,t:'帮助了别人',c:'指路给迷路的游客，听到谢谢时很开心',m:'grateful',d:now-259200000},
+                    {id:13,t:'睡了个好觉',c:'最近失眠终于睡了个安稳觉，醒来精神满满',m:'calm',d:now-345600000},
+                    {id:14,t:'学会新技能',c:'终于学会了一直想学的滑板，摔了无数次但值得',m:'happy',d:now-432000000},
+                    {id:15,t:'好天气的治愈',c:'连续阴雨天终于放晴，阳光洒进来心情也跟着好了',m:'calm',d:now-518400000},
+                ];
+            }
+            save();updateCloud(data.c);updateToday();renderMonth();renderMem();renderFriends();updateChart();updatePressure(data.p,false);renderWeekChart();updateTrajectoryTrend();updateValenceArousal(data.p);
+            // 更新统计
+            const days = Math.ceil((Date.now() - data.start) / 86400000) || 1;
+            document.getElementById('trackDays').textContent = days;
+            document.getElementById('statEmotions').textContent = data.emotions.length;
+            document.getElementById('statMemories').textContent = data.memories.length;
+            // 统计情绪分布
+            const emotionCounts = {happy:0,calm:0,sad:0,anxious:0};
+            data.emotions.forEach(e => {if(emotionCounts[e.e]!==undefined) emotionCounts[e.e]++;});
+            document.getElementById('statHappy').textContent = emotionCounts.happy;
+            document.getElementById('statCalm').textContent = emotionCounts.calm;
+            document.getElementById('statSad').textContent = emotionCounts.sad;
+            document.getElementById('statAnxious').textContent = emotionCounts.anxious;
+            // 更新周视图
+            const now = new Date();
+            const dayOfWeek = now.getDay() || 7;
+            for(let i=1;i<=7;i++){
+                const bar = document.getElementById('weekBar'+(i-1));
+                if(bar){
+                    const dayData = data.emotions.filter(e => {
+                        const d = new Date(e.ts);
+                        return d.getDay() === (i === 7 ? 0 : i);
+                    });
+                    if(dayData.length > 0){
+                        // 随机选择当天主要情绪
+                        const mainEmo = dayData[Math.floor(Math.random()*dayData.length)].e;
+                        bar.className = 'absolute bottom-0 w-full rounded-t h-full bg-'+mainEmo+'/60';
+                    }
+                }
+            }
+            document.getElementById('currentDate')?.setAttribute('datetime',new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'}));
+        }
+        
+        function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}
+        
+        const pageTitles = {home:'情绪云',dashboard:'数据面板',timeline:'情绪追踪',memories:'能量罐',friends:'密友',profile:'我的'};
+        function showPage(p){
+            document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+            document.getElementById('page-'+p).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(x=>{x.classList.toggle('active',x.dataset.page===p);});
+            document.getElementById('pageTitle').textContent = pageTitles[p];
+            if(p==='memories')renderMem();if(p==='friends')renderFriends();
+        }
+        
+        function setEmotion(e){
+            data.c=e;
+            // 焦虑时压力更高，其他更低
+            data.p=e==='anxious'?Math.floor(Math.random()*30+65):Math.floor(Math.random()*40+20);
+            data.v=Math.random()*1.4-0.7;
+            data.a=e==='happy'?Math.floor(Math.random()*30+50):Math.floor(Math.random()*40+20);
+            data.emotions.push({ts:Date.now(),e:e,p:data.p,v:data.v,a:data.a});
+            updateCloud(e);updateToday();save();checkWarn();
+        }
+        
+        function updateCloud(e){
+            const c=emotionColors[e]||emotionColors.neutral;
+            document.getElementById('gradTop').setAttribute('stop-color',c.g[0]);
+            document.getElementById('gradBot').setAttribute('stop-color',c.g[1]);
+            document.getElementById('emotionLabel').textContent=c.l;
+            // 更新嘴巴表情
+            const m=document.getElementById('mouth');
+            m.setAttribute('d',e==='happy'?'M90 62 Q100 72 110 62':e==='sad'?'M90 68 Q100 58 110 68':e==='anxious'?'M92 64 L98 64 L100 62 L102 64 L108 64':'M90 62 Q100 70 110 62');
+        }
+        
+        // 焦虑舒缓建议（简短版）
+        const anxiousRelaxTips = [
+            '去深呼吸三次吧',
+            '听一首喜欢的歌',
+            '出门走一走放松一下',
+            '喝杯温水，慢慢放松'
+        ];
+
+        // 拍一拍动画 - 根据情绪不同做不同效果
+        function tapCloud(evt){
+            const cloudSvg = document.getElementById('cloudSvg');
+            const wrapper = document.getElementById('smallCloudWrapper');
+            const particles = document.getElementById('particles');
+            const currentEmotion = data.c;
+            
+            // 移除之前的动画类
+            cloudSvg.classList.remove('cloud-calm-tap','cloud-happy-tap','cloud-anxious-tap','cloud-sad-tap');
+            wrapper.classList.remove('cloud-sad-tap');
+            void cloudSvg.offsetWidth; // 强制重绘
+            
+            if(currentEmotion === 'anxious'){
+                // ===== 焦虑云 (红色) =====
+                // 动画：震动收缩 + 颜色柔和变淡
+                cloudSvg.classList.add('cloud-anxious-tap');
+                
+                // 颜色变化：深红 -> 浅红 -> 淡红（不变成紫色）
+                document.getElementById('gradTop').setAttribute('stop-color','#F87171');
+                document.getElementById('gradBot').setAttribute('stop-color','#FCA5A5');
+                
+                setTimeout(()=>{
+                    document.getElementById('gradTop').setAttribute('stop-color','#FECACA');
+                    document.getElementById('gradBot').setAttribute('stop-color','#FEBEBE');
+                },600);
+                
+                // 2.5秒后恢复红色
+                setTimeout(()=>{
+                    document.getElementById('gradTop').setAttribute('stop-color','#EF4444');
+                    document.getElementById('gradBot').setAttribute('stop-color','#DC2626');
+                },2500);
+                
+                // 显示舒缓文字
+                const relaxText = document.getElementById('relaxText');
+                const relaxContent = document.getElementById('relaxTextContent');
+                const tip = anxiousRelaxTips[Math.floor(Math.random() * anxiousRelaxTips.length)];
+                relaxContent.textContent = tip;
+                relaxText.classList.remove('hidden');
+                relaxText.classList.add('relax-text');
+                
+                // 3秒后隐藏文字
+                setTimeout(()=>{
+                    relaxText.classList.add('hidden');
+                    relaxText.classList.remove('relax-text');
+                },3000);
+                
+                // 金光效果
+                const g=document.getElementById('goldenLayer');
+                g.classList.remove('golden-pulse');void g.offsetWidth;g.classList.add('golden-pulse');
+            }
+            else if(currentEmotion === 'sad'){
+                // ===== 低落云 (灰紫色) =====
+                // 动画：微微下落后上浮 + 飘小光点、糖果
+                wrapper.classList.add('cloud-sad-tap');
+                
+                // 飘出小光点、糖果
+                const sadParticles = ['⭐','✨','💫','🍬','💝','🌟','🫧','💧'];
+                for(let i=0;i<8;i++){
+                    setTimeout(()=>{
+                        const el=document.createElement('div');
+                        el.className='star-particle';
+                        el.textContent=sadParticles[Math.floor(Math.random()*sadParticles.length)];
+                        el.style.left=(15+Math.random()*70)+'%';
+                        el.style.top=(25+Math.random()*40)+'%';
+                        particles.appendChild(el);
+                        setTimeout(()=>el.remove(),1500);
+                    },i*120);
+                }
+                
+                // 金光效果
+                const g=document.getElementById('goldenLayer');
+                g.classList.remove('golden-pulse');void g.offsetWidth;g.classList.add('golden-pulse');
+                
+                // 从能量罐抽取温暖记忆（保持不变）
+                setTimeout(()=>showMemoryTip(),600);
+            }
+            else if(currentEmotion === 'happy'){
+                // ===== 开心云 (暖橙色) =====
+                // 动画：轻轻弹跳 + 小太阳 + 小花星光
+                cloudSvg.classList.add('cloud-happy-tap');
+                
+                // 飘出小太阳
+                const suns = ['☀️','🌞','💫'];
+                for(let i=0;i<3;i++){
+                    setTimeout(()=>{
+                        const el=document.createElement('div');
+                        el.className='sun-particle';
+                        el.textContent=suns[Math.floor(Math.random()*suns.length)];
+                        el.style.left=(40+Math.random()*20)+'%';
+                        el.style.top='20%';
+                        particles.appendChild(el);
+                        setTimeout(()=>el.remove(),1500);
+                    },i*200);
+                }
+                
+                // 飘出小花星光
+                const happyParticles = ['🌸','✨','🎉','💖','🌺','🌼','🪄'];
+                for(let i=0;i<8;i++){
+                    setTimeout(()=>{
+                        const el=document.createElement('div');
+                        el.className='happy-particle';
+                        el.textContent=happyParticles[Math.floor(Math.random()*happyParticles.length)];
+                        el.style.left=(15+Math.random()*70)+'%';
+                        el.style.top=(20+Math.random()*35)+'%';
+                        particles.appendChild(el);
+                        setTimeout(()=>el.remove(),1200);
+                    },i*100);
+                }
+                
+                // 金光效果
+                const g=document.getElementById('goldenLayer');
+                g.classList.remove('golden-pulse');void g.offsetWidth;g.classList.add('golden-pulse');
+            }
+            else{
+                // ===== 平静云 (淡蓝色) =====
+                // 动画：左右缓慢漂浮、轻轻晃动 + 小雨滴
+                cloudSvg.classList.add('cloud-calm-tap');
+                
+                // 落下温柔小雨滴
+                const rainContainer = document.getElementById('rainContainer');
+                for(let i=0;i<6;i++){
+                    setTimeout(()=>{
+                        const el=document.createElement('div');
+                        el.className='gentle-rain';
+                        el.style.left=(30+Math.random()*40)+'%';
+                        el.style.top='80%';
+                        rainContainer.appendChild(el);
+                        setTimeout(()=>el.remove(),1500);
+                    },i*200);
+                }
+                
+                // 平静的星光
+                const calmParticles = ['💫','✨','🌟','🪐'];
+                for(let i=0;i<5;i++){
+                    setTimeout(()=>{
+                        const el=document.createElement('div');
+                        el.className='tap-emoji';
+                        el.textContent=calmParticles[Math.floor(Math.random()*calmParticles.length)];
+                        el.style.left=(25+Math.random()*50)+'%';
+                        el.style.top=(35+Math.random()*25)+'%';
+                        particles.appendChild(el);
+                        setTimeout(()=>el.remove(),1200);
+                    },i*150);
+                }
+            }
+        }
+        
+        // 显示温暖提示
+        function showWarmTip(){
+            const tip = document.getElementById('warmTip');
+            const tipText = document.getElementById('warmTipText');
+            tipText.textContent = warmTips[Math.floor(Math.random()*warmTips.length)];
+            tip.classList.remove('hidden');
+            tip.classList.add('warm-tip-show');
+            setTimeout(()=>hideWarmTip(),2500);
+        }
+        
+        // 从能量罐抽取温暖记忆显示
+        function showMemoryTip(){
+            const tip = document.getElementById('warmTip');
+            const tipText = document.getElementById('warmTipText');
+            const catEmoji = {
+                '陌生人的善意':'💝','可爱的小动物':'🐱','美丽的风景':'🏔️','吃到美食':'🍰',
+                '完成小目标':'🎯','家人朋友的温暖':'❤️','自我鼓励与成长':'🌱','其他小确幸':'✨'
+            };
+            
+            if(data.memories && data.memories.length > 0){
+                // 随机抽取一条记忆
+                const randomMem = data.memories[Math.floor(Math.random() * data.memories.length)];
+                const catText = randomMem.cat ? `[${randomMem.cat}]` : '';
+                let content = `还记得吗？「${catText} ${randomMem.t}」\n\n${randomMem.c}`;
+                
+                // 如果有图片，显示在提示框中
+                if(randomMem.img){
+                    // 创建一个带有图片的提示框
+                    tip.innerHTML = `
+                        <div class="text-center">
+                            <div class="text-3xl mb-2">${catEmoji[randomMem.cat] || '💝'}</div>
+                            <img src="${randomMem.img}" class="w-full aspect-video object-cover rounded-lg mb-2">
+                            <p class="text-sm txtPrimary font-medium whitespace-pre-line text-left">${content}</p>
+                        </div>
+                    `;
+                } else {
+                    tipText.textContent = content;
+                }
+            } else {
+                // 没有记录时显示默认提示
+                tipText.textContent = '快去能量罐记录你的温暖小事吧，下次低落时它们会来安慰你~';
+            }
+            
+            tip.classList.remove('hidden');
+            tip.classList.add('warm-tip-show');
+            setTimeout(()=>hideWarmTip(),5000);
+        }
+        
+        // 隐藏温暖提示
+        function hideWarmTip(){
+            const tip = document.getElementById('warmTip');
+            tip.classList.add('hidden');
+            tip.classList.remove('warm-tip-show');
+            // 恢复默认内容
+            tip.innerHTML = `<div class="text-center"><div class="text-3xl mb-2">💝</div><p id="warmTipText" class="text-base txtPrimary font-medium whitespace-pre-line text-left"></p></div>`;
+        }
+        
+        function updateToday(){
+            document.getElementById('todayDot').className='w-2.5 h-2.5 rounded-full bg-'+data.c;
+            document.getElementById('todayText').textContent=emotionColors[data.c].l;
+            document.getElementById('todayPressure').textContent=data.p;
+        }
+        
+        // 舒缓建议库
+        const relaxSuggestions = [
+            '试试深呼吸3次，慢慢吸气、呼气',
+            '听一首舒缓的音乐，放松心情',
+            '站起来活动一下，伸展身体',
+            '喝杯温水，给身体一个短暂的休息',
+            '写下此刻的感受，释放情绪',
+            '看看窗外的风景，让眼睛休息',
+            '给信任的人发条消息，分享心情',
+            '闭上眼睛冥想1分钟'
+        ];
+
+        // 获取压力等级和颜色
+        function getPressureLevel(v) {
+            if(v <= 30) return { level: '放松', color: '#7DD3FC', bg: 'rgba(125,211,252,0.2)', text: 'calm' };
+            if(v <= 50) return { level: '平稳', color: '#4ADE80', bg: 'rgba(74,222,128,0.2)', text: 'text-green-500' };
+            if(v <= 75) return { level: '紧张', color: '#FDBA74', bg: 'rgba(253,186,116,0.2)', text: 'text-orange-500' };
+            return { level: '焦虑', color: '#FCA5A5', bg: 'rgba(252,165,165,0.2)', text: 'sad' };
+        }
+
+        // 获取情绪信息
+        function getEmotionInfo(v) {
+            if(v <= 30) return { emoji: '😌', label: '平静', desc: '状态良好', level: '状态良好' };
+            if(v <= 50) return { emoji: '😊', label: '愉悦', desc: '情绪积极，心态稳定', level: '状态良好' };
+            if(v <= 75) return { emoji: '😰', label: '紧张', desc: `压力值${v}，交感神经活跃`, level: '轻度紧张' };
+            return { emoji: '😫', label: '焦虑', desc: `压力值${v}，高度紧张，建议立即舒缓`, level: '高度紧张' };
+        }
+
+        // 更新压力值
+        let currentDisplayedPressure = 0;
+        let pressureAnimationFrame = null;
+
+        function updatePressure(v, animate = true) {
+            const newVal = parseInt(v);
+            data.p = newVal;
+            
+            if(animate) {
+                // 平滑过渡动画
+                if(pressureAnimationFrame) cancelAnimationFrame(pressureAnimationFrame);
+                const startVal = currentDisplayedPressure;
+                const diff = newVal - startVal;
+                const duration = 500;
+                const startTime = performance.now();
+                
+                function animatePressure(currentTime) {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const easeProgress = 1 - Math.pow(1 - progress, 3); // ease-out
+                    currentDisplayedPressure = Math.round(startVal + diff * easeProgress);
+                    
+                    updatePressureDisplay(currentDisplayedPressure);
+                    
+                    if(progress < 1) {
+                        pressureAnimationFrame = requestAnimationFrame(animatePressure);
+                    }
+                }
+                pressureAnimationFrame = requestAnimationFrame(animatePressure);
+            } else {
+                currentDisplayedPressure = newVal;
+                updatePressureDisplay(newVal);
+            }
+            
+            document.getElementById('pSlider').value = v;
+            save();
+            updateChart();
+            updateTrajectoryTrend();
+        }
+
+        // 更新压力显示
+        function updatePressureDisplay(v) {
+            const pInfo = getPressureLevel(v);
+            document.getElementById('pressureNum').textContent = v;
+            document.getElementById('pressureCircle').setAttribute('stroke-dashoffset', 251 - (v / 100) * 251);
+            document.getElementById('pressureCircle').setAttribute('stroke', pInfo.color);
+            
+            // 更新光晕
+            const glow = document.getElementById('ringGlow');
+            glow.style.color = pInfo.color;
+            glow.style.opacity = v > 50 ? '0.3' : '0';
+            
+            // 更新tooltip
+            const level = v <= 30 ? '状态良好' : v <= 50 ? '状态良好' : v <= 75 ? '轻度紧张' : '高度紧张';
+            document.getElementById('tooltipValue').textContent = v;
+            document.getElementById('tooltipValue').style.color = pInfo.color;
+            document.getElementById('tooltipLevel').textContent = level;
+            
+            // 更新情绪卡片
+            const eInfo = getEmotionInfo(v);
+            document.getElementById('emotionIcon').textContent = eInfo.emoji;
+            document.getElementById('currentEmotionLabel').textContent = eInfo.label;
+            document.getElementById('emotionDesc').textContent = eInfo.desc;
+            document.getElementById('emotionLevel').textContent = eInfo.level;
+            document.getElementById('emotionLevel').className = `text-xs px-2 py-0.5 rounded-full ${pInfo.bg} ${pInfo.text}`;
+            
+            // 更新卡片背景
+            const card = document.getElementById('emotionCard');
+            const bgColors = {
+                calm: 'linear-gradient(135deg, rgba(125,211,252,0.2), rgba(56,189,248,0.1))',
+                happy: 'linear-gradient(135deg, rgba(253,186,116,0.2), rgba(251,146,60,0.1))',
+                sad: 'linear-gradient(135deg, rgba(167,139,250,0.2), rgba(139,92,246,0.1))',
+                anxious: 'linear-gradient(135deg, rgba(252,165,165,0.2), rgba(239,68,68,0.1))'
+            };
+            const emotionType = v <= 30 ? 'calm' : v <= 50 ? 'happy' : v <= 75 ? 'anxious' : 'sad';
+            card.style.background = bgColors[emotionType];
+            
+            // 更新舒缓建议
+            const suggestion = relaxSuggestions[Math.floor(Math.random() * relaxSuggestions.length)];
+            document.getElementById('suggestionText').textContent = suggestion;
+            
+            // 更新情绪效价和唤醒度（实时联动）
+            updateValenceArousal(v);
+        }
+
+        // 更新情绪效价和唤醒度
+        function updateValenceArousal(pressure) {
+            // 效价：压力越高越低 (0-1范围)
+            const valence = Math.max(0, Math.min(1, 1 - (pressure / 100) * 1.2));
+            // 唤醒度：压力越高越高 (0-100范围)
+            const arousal = 30 + (pressure / 100) * 60;
+            
+            document.getElementById('valenceNum').textContent = valence.toFixed(2);
+            document.getElementById('valenceNum').style.color = valence > 0.5 ? '#4ADE80' : '#FCA5A5';
+            document.getElementById('valenceBar').style.width = (valence * 100) + '%';
+            
+            document.getElementById('arousalNum').textContent = Math.round(arousal);
+            document.getElementById('arousalNum').style.color = arousal > 60 ? '#FDBA74' : '#7DD3FC';
+            document.getElementById('arousalBar').style.width = arousal + '%';
+        }
+
+        // 显示压力tooltip
+        function showPressureTooltip() {
+            document.getElementById('pressureTooltip').classList.remove('hidden');
+        }
+
+        function hidePressureTooltip() {
+            document.getElementById('pressureTooltip').classList.add('hidden');
+        }
+
+        // 更新轨迹趋势
+        function updateTrajectoryTrend() {
+            const pts = data.emotions.slice(-5);
+            if(pts.length < 2) {
+                document.getElementById('trajectoryTrend').textContent = '等待数据...';
+                return;
+            }
+            const trend = pts[pts.length-1].p - pts[0].p;
+            if(trend > 10) {
+                document.getElementById('trajectoryTrend').textContent = '📈 近期波动上升';
+                document.getElementById('trajectoryTrend').className = 'text-[10px] text-orange-500';
+            } else if(trend < -10) {
+                document.getElementById('trajectoryTrend').textContent = '📉 近期趋于平稳';
+                document.getElementById('trajectoryTrend').className = 'text-[10px] text-calm';
+            } else {
+                document.getElementById('trajectoryTrend').textContent = '➡️ 情绪状态稳定';
+                document.getElementById('trajectoryTrend').className = 'text-[10px] txtSecondary';
+            }
+        }
+
+        // 更新图表
+        function updateChart(){
+            const pts = data.emotions.slice(-12);
+            if(pts.length < 2) return;
+            
+            const minP = Math.min(...pts.map(x => x.p));
+            const maxP = Math.max(...pts.map(x => x.p));
+            const range = maxP - minP || 1;
+            
+            const path = pts.map((p, i) => {
+                const x = 20 + (i / (pts.length - 1)) * 260;
+                const y = 100 - ((p.p - minP) / range) * 80;
+                return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+            }).join(' ');
+            
+            document.getElementById('chartPath').setAttribute('d', path);
+            
+            // 绘制带颜色的点
+            const dots = document.getElementById('chartDots');
+            dots.innerHTML = pts.map((p, i) => {
+                const x = 20 + (i / (pts.length - 1)) * 260;
+                const y = 100 - ((p.p - minP) / range) * 80;
+                const color = emotionColors[p.e].g[0];
+                return `<circle cx="${x}" cy="${y}" r="4" fill="${color}" class="cursor-pointer" onclick="showPointDetail(${i})"/>`;
+            }).join('');
+            
+            // 添加悬浮交互区域
+            const hoverArea = document.getElementById('chartHoverArea');
+            hoverArea.innerHTML = pts.map((p, i) => {
+                const x = 20 + (i / (pts.length - 1)) * 260;
+                const y = 100 - ((p.p - minP) / range) * 80;
+                const time = new Date(p.t).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'});
+                return `<rect x="${x-15}" y="10" width="30" height="100" fill="transparent" 
+                    onmouseenter="showChartTooltip(event, ${i}, '${time}', '${emotionColors[p.e].l}', ${p.p})" 
+                    onmouseleave="hideChartTooltip()"/>`;
+            }).join('');
+        }
+
+        // 显示图表tooltip
+        function showChartTooltip(event, idx, time, emotion, pressure) {
+            const tooltip = document.getElementById('chartTooltip');
+            const container = document.getElementById('chartContainer');
+            const rect = container.getBoundingClientRect();
+            
+            document.getElementById('tooltipTime').textContent = time;
+            document.getElementById('tooltipEmotion').textContent = emotion;
+            document.getElementById('tooltipPressure').textContent = `压力值 ${pressure}`;
+            
+            let x = event.clientX - rect.left + 10;
+            let y = event.clientY - rect.top - 60;
+            if(x + 100 > rect.width) x = x - 120;
+            if(y < 0) y = 10;
+            
+            tooltip.style.left = x + 'px';
+            tooltip.style.top = y + 'px';
+            tooltip.classList.remove('hidden');
+        }
+
+        function hideChartTooltip() {
+            document.getElementById('chartTooltip').classList.add('hidden');
+        }
+
+        function showPointDetail(idx) {
+            const pts = data.emotions.slice(-12);
+            if(pts[idx]) {
+                const p = pts[idx];
+                const time = new Date(p.t).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'});
+                alert(`${time}\n情绪: ${emotionColors[p.e].l}\n压力值: ${p.p}`);
+            }
+        }
+        
+        function switchView(v){
+            document.querySelectorAll('.view-btn').forEach(b=>{b.classList.toggle('bg-white',b.dataset.v===v);b.classList.toggle('shadow-sm',b.dataset.v===v);b.classList.toggle('txtSecondary',b.dataset.v!==v);});
+            document.getElementById('weekView').classList.toggle('hidden',v!=='week');
+            document.getElementById('monthView').classList.toggle('hidden',v!=='month');
+            if(v === 'month'){
+                renderMonthChart();
+                renderMonthCalendar();
+            }
+        }
+        
+        function renderMonth(){
+            // 保持空函数，由renderMonthCalendar在切换月份时调用
+        }
+        
+        function renderMem(){
+            const g=document.getElementById('memGrid');
+            document.getElementById('memCount').textContent=data.memories.length;
+            const moodEmoji={happy:'😊',calm:'😌',grateful:'🙏',love:'💕'};
+            const catColors={
+                '陌生人的善意':'bg-purple-100 text-purple-600',
+                '可爱的小动物':'bg-pink-100 text-pink-600',
+                '美丽的风景':'bg-blue-100 text-blue-600',
+                '吃到美食':'bg-orange-100 text-orange-600',
+                '完成小目标':'bg-green-100 text-green-600',
+                '家人朋友的温暖':'bg-red-100 text-red-600',
+                '自我鼓励与成长':'bg-yellow-100 text-yellow-600',
+                '其他小确幸':'bg-gray-100 text-gray-600'
+            };
+            g.innerHTML=data.memories.map(m=>`<div class="memory-card glass p-4">
+                ${m.img ? `<div class="w-full aspect-video rounded-lg mb-2 overflow-hidden bg-gray-100"><img src="${m.img}" class="w-full h-full object-cover"></div>` : ''}
+                <div class="flex justify-between items-start mb-1">
+                    <span class="text-xl">${moodEmoji[m.m]||'✨'}</span>
+                    <span class="text-[10px] txtSecondary">${new Date(m.d).toLocaleDateString('zh-CN',{month:'short',day:'numeric'})}</span>
+                </div>
+                ${m.cat ? `<span class="inline-block px-2 py-0.5 rounded-full text-[9px] ${catColors[m.cat]||'bg-gray-100 text-gray-600'} mb-1">${m.cat}</span>` : ''}
+                <h4 class="font-medium txtPrimary text-sm">${m.t}</h4>
+                <p class="text-xs txtSecondary mt-1 line-clamp-2">${m.c}</p>
+            </div>`).join('');
+        }
+        
+        function openMemModal(){
+            document.getElementById('memModal').classList.remove('hidden');
+            document.getElementById('memModal').classList.add('flex');
+            // 重置分类选择
+            selCategoryVal = '';
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('bg-sad/20','text-sad','bg-happy/20','text-happy','bg-calm/20','text-calm','bg-gold/20','text-gold','bg-anxious/20','text-anxious','bg-purple-500/20','text-purple-500','bg-gray-200'));
+        }
+        function closeMemModal(){
+            document.getElementById('memModal').classList.add('hidden');
+            document.getElementById('memModal').classList.remove('flex');
+            // 清除图片预览
+            clearImage();
+        }
+        let selCategoryVal = '';
+        let selMoodVal = 'happy';
+        let selectedImage = '';
+        
+        function selCategory(cat){
+            selCategoryVal = cat;
+            document.querySelectorAll('.cat-btn').forEach(b => {
+                if(b.dataset.cat === cat){
+                    b.classList.add('bg-sad/20','text-sad');
+                    b.classList.remove('bg-gray-100');
+                } else {
+                    b.classList.remove('bg-sad/20','text-sad','bg-happy/20','text-happy','bg-calm/20','text-calm','bg-gold/20','text-gold','bg-anxious/20','text-anxious','bg-purple-500/20','text-purple-500','bg-gray-200');
+                }
+            });
+        }
+        
+        function previewImage(input){
+            if(input.files && input.files[0]){
+                const reader = new FileReader();
+                reader.onload = function(e){
+                    selectedImage = e.target.result;
+                    document.getElementById('previewImg').src = selectedImage;
+                    document.getElementById('imgPreview').classList.remove('hidden');
+                    document.getElementById('clearImgBtn').classList.remove('hidden');
+                    document.getElementById('imgLabel').textContent = '✓ 已添加照片';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        function clearImage(){
+            selectedImage = '';
+            document.getElementById('memImage').value = '';
+            document.getElementById('imgPreview').classList.add('hidden');
+            document.getElementById('clearImgBtn').classList.add('hidden');
+            document.getElementById('imgLabel').textContent = '📷 添加照片（选填）';
+        }
+        
+        function saveMem(){
+            const t=document.getElementById('memTitle').value,c=document.getElementById('memContent').value;
+            if(!t && !c) return;
+            const mem = {
+                id:Date.now(),
+                t: t || (selCategoryVal ? selCategoryVal : '温暖小事'),
+                c: c,
+                cat: selCategoryVal,
+                img: selectedImage,
+                m: selMoodVal,
+                d: Date.now()
+            };
+            data.memories.unshift(mem);
+            save();renderMem();closeMemModal();
+            document.getElementById('memTitle').value='';
+            document.getElementById('memContent').value='';
+        }
+        
+        function renderFriends(){
+            const f=data.friends;
+            document.getElementById('friendList').innerHTML=f.map(fi=>`<div class="glass p-4 flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl">${fi.e}</div>
+                ${fi.s==='sad' ? `<div class="relative"><svg viewBox="0 0 36 24" class="w-9 h-6"><defs><linearGradient id="sadCloudGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#C4B5FD"/><stop offset="100%" stop-color="#A78BFA"/></linearGradient></defs><path fill="url(#sadCloudGrad)" d="M8,16 Q4,16 4,12 Q4,8 8,8 Q8,5 12,5 Q14,3 17,5 Q20,3 23,5 Q27,5 27,9 Q30,9 30,12 Q30,16 26,16 Z"/><g><line x1="10" y1="17" x2="9" y2="21" stroke="#A78BFA" stroke-width="1.5" stroke-linecap="round" class="rain-anim"/><line x1="18" y1="17" x2="17" y2="22" stroke="#A78BFA" stroke-width="1.5" stroke-linecap="round" class="rain-anim" style="animation-delay:0.4s"/><line x1="25" y1="17" x2="24" y2="20" stroke="#A78BFA" stroke-width="1.5" stroke-linecap="round" class="rain-anim" style="animation-delay:0.8s"/></g></svg></div>` : ''}
+                <div class="flex-1"><div class="font-medium txtPrimary">${fi.name}</div><div class="text-xs txtSecondary">${fi.s==='sad'?'心情不太好':fi.s==='happy'?'很开心':'最近不错'}</div></div>
+                <button onclick="sendComfort(${fi.id})" class="px-3 py-1.5 rounded-full bg-gold/20 text-gold text-xs hover:bg-gold/40 transition">拍一拍</button>
+            </div>`).join('');
+            // 添加下雨动画样式
+            if(!document.getElementById('rainAnimStyle')){
+                const style=document.createElement('style');
+                style.id='rainAnimStyle';
+                style.textContent='.rain-anim{animation:rainFall 1.2s linear infinite;opacity:0.6}@keyframes rainFall{0%{transform:translateY(0)}100%{transform:translateY(10px);opacity:0}}';
+                document.head.appendChild(style);
+            }
+        }
+        
+        function sendComfort(id){
+            const f=data.friends.find(x=>x.id===id);
+            if(f){alert('✨ 已向'+f.name+'发送安慰金光！');}
+        }
+        
+        // 添加密友相关函数
+        function openAddFriendModal(){
+            document.getElementById('addFriendModal').classList.remove('hidden');
+            document.getElementById('addFriendModal').classList.add('flex');
+        }
+        
+        function closeAddFriendModal(){
+            document.getElementById('addFriendModal').classList.add('hidden');
+            document.getElementById('addFriendModal').classList.remove('flex');
+        }
+        
+        function switchAddType(type){
+            document.getElementById('tabSearch').classList.toggle('bg-white',type==='search');
+            document.getElementById('tabSearch').classList.toggle('shadow-sm',type==='search');
+            document.getElementById('tabSearch').classList.toggle('txtSecondary',type!=='search');
+            document.getElementById('tabNearby').classList.toggle('bg-white',type==='nearby');
+            document.getElementById('tabNearby').classList.toggle('shadow-sm',type==='nearby');
+            document.getElementById('tabNearby').classList.toggle('txtSecondary',type!=='nearby');
+            document.getElementById('searchPanel').classList.toggle('hidden',type!=='search');
+            document.getElementById('nearbyPanel').classList.toggle('hidden',type!=='nearby');
+        }
+        
+        function searchFriend(){
+            const id = document.getElementById('searchId').value.trim();
+            if(!id){
+                document.getElementById('searchResult').innerHTML = '<p class="text-xs text-red-500 text-center">请输入用户ID</p>';
+                return;
+            }
+            // 模拟搜索结果
+            document.getElementById('searchResult').innerHTML = `
+                <div class="glass p-3 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center">👤</div>
+                    <div class="flex-1">
+                        <div class="text-sm font-medium txtPrimary">用户 ${id}</div>
+                        <div class="text-xs txtSecondary">状态: 在线</div>
+                    </div>
+                    <button onclick="confirmAddFriend('${id}')" class="px-2 py-1 rounded-full bg-gold/20 text-gold text-xs">添加</button>
+                </div>
+            `;
+        }
+        
+        function confirmAddFriend(name){
+            if(confirm('发送好友请求给 ' + name + '？对方同意后将自动成为密友。')){
+                alert('✨ 好友请求已发送，等待对方同意~');
+                closeAddFriendModal();
+            }
+        }
+        
+        function sendRequest(btn){
+            btn.textContent = '已发送';
+            btn.classList.remove('bg-gold/20','text-gold');
+            btn.classList.add('bg-gray-200','txtSecondary');
+            btn.disabled = true;
+            setTimeout(()=>{
+                alert('✨ 对方已同意，你们现在成为密友了！');
+            },1500);
+        }
+        
+        function toggleWearable(){
+            data.set.w=!data.set.w;
+            document.getElementById('wearPanel').classList.toggle('hidden',!data.set.w);
+            document.getElementById('wearBtn').classList.toggle('bg-gray-200',!data.set.w);
+            document.getElementById('wearBtn').classList.toggle('bg-calm',data.set.w);
+            document.getElementById('wearBtn').children[0].classList.toggle('left-0.5',!data.set.w);
+            document.getElementById('wearBtn').children[0].classList.toggle('right-0.5',data.set.w);
+            save();
+        }
+        
+        function toggleNotif(){
+            data.set.n=!data.set.n;
+            document.getElementById('notifBtn').classList.toggle('bg-gray-200',!data.set.n);
+            document.getElementById('notifBtn').classList.toggle('bg-calm',data.set.n);
+            document.getElementById('notifBtn').children[0].classList.toggle('left-0.5',!data.set.n);
+            document.getElementById('notifBtn').children[0].classList.toggle('right-0.5',data.set.n);
+            save();
+        }
+        
+        function simData(){
+            document.getElementById('hrVal').textContent=60+Math.floor(Math.random()*40);
+            document.getElementById('hrvVal').textContent=30+Math.floor(Math.random()*50);
+            document.getElementById('strVal').textContent=Math.floor(Math.random()*60);
+        }
+        
+        function exportData(){
+            const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+            const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='emotion-cloud-data.json';a.click();
+        }
+        
+        function clearData(){if(confirm('确定清空所有数据？')){localStorage.removeItem(STORAGE_KEY);location.reload();}}
+        
+        const warnMsgs={70:'今天有点累了呢~',85:'记得休息一下呀','>85':'照顾好自己，你很重要'};
+        function checkWarn(){if(!data.set.n)return;const p=data.p;const m=p>=85?'>85':p>=70?p.toString():null;if(m){document.getElementById('warnMsg').textContent=warnMsgs[m];document.getElementById('warnToast').classList.remove('hidden');}}
+        function dismissWarn(){document.getElementById('warnToast').classList.add('hidden');}
+        
+        // 绘制周报曲线图
+        function renderWeekChart(){
+            // 模拟周报数据
+            const weekData = [30, 35, 40, 28, 32, 25, 22];
+            const days = ['周一','周二','周三','周四','周五','周六','周日'];
+            const width = 260; // 可用宽度
+            const height = 80;
+            const startX = 30;
+            
+            // 转换数据为坐标点
+            const points = weekData.map((v, i) => {
+                const x = startX + (i / (weekData.length - 1)) * width;
+                const y = 100 - (v / 100) * height; // 反转Y轴
+                return {x, y, v};
+            });
+            
+            // 绘制平滑曲线 (使用二次贝塞尔曲线)
+            let path = `M ${points[0].x} ${points[0].y}`;
+            for(let i = 1; i < points.length; i++){
+                const p0 = points[i - 1];
+                const p1 = points[i];
+                const midX = (p0.x + p1.x) / 2;
+                path += ` Q ${p0.x} ${p0.y}, ${midX} ${(p0.y + p1.y) / 2}`;
+                path += ` Q ${midX} ${(p0.y + p1.y) / 2}, ${p1.x} ${p1.y}`;
+            }
+            document.getElementById('weekCurve').setAttribute('d', path);
+            
+            // 绘制数据点
+            const pointsHtml = points.map((p, i) => {
+                const isHigh = p.v >= 40;
+                const isLow = p.v <= 25;
+                let color = '#7DD3FC';
+                if(isHigh) color = '#F97316';
+                if(isLow) color = '#38BDF8';
+                return `<circle cx="${p.x}" cy="${p.y}" r="${isHigh || isLow ? 5 : 3}" fill="${color}" stroke="white" stroke-width="1.5">
+                    <title>${days[i]}: ${p.v}</title>
+                </circle>`;
+            }).join('');
+            document.getElementById('weekPoints').innerHTML = pointsHtml;
+            
+            // 检测预警：连续三天上升（30→35→40）
+            const warningThreshold = 60;
+            const hasWarning = weekData[0] < weekData[1] && weekData[1] < weekData[2] && weekData[2] < warningThreshold;
+            
+            if(hasWarning){
+                document.getElementById('weekWarning').classList.remove('hidden');
+            }
+        }
+        
+        // 绘制月报曲线图
+        function renderMonthChart(){
+            // 模拟30天数据
+            const monthData = [];
+            for(let i=0; i<30; i++){
+                monthData.push(Math.floor(Math.random() * 40 + 20));
+            }
+            // 修复趋势：让数据更平滑
+            monthData[0] = 28;
+            monthData[1] = 32;
+            monthData[2] = 30;
+            monthData[3] = 35;
+            monthData[4] = 38;
+            monthData[5] = 40;
+            monthData[6] = 35;
+            monthData[7] = 30;
+            monthData[8] = 28;
+            monthData[9] = 25;
+            for(let i=10; i<30; i++){
+                monthData[i] = Math.floor(Math.random() * 30 + 22);
+            }
+            
+            const width = 180;
+            const height = 60;
+            const startX = 10;
+            
+            const points = monthData.map((v, i) => {
+                const x = startX + (i / (monthData.length - 1)) * width;
+                const y = 55 - (v / 100) * height;
+                return {x, y, v};
+            });
+            
+            // 绘制填充区域
+            let areaPath = `M ${points[0].x} 55 `;
+            points.forEach(p => { areaPath += `L ${p.x} ${p.y} `; });
+            areaPath += `L ${points[points.length-1].x} 55 Z`;
+            document.getElementById('monthArea').setAttribute('d', areaPath);
+            
+            // 绘制曲线
+            let path = `M ${points[0].x} ${points[0].y}`;
+            for(let i = 1; i < points.length; i++){
+                const p0 = points[i - 1];
+                const p1 = points[i];
+                const midX = (p0.x + p1.x) / 2;
+                path += ` Q ${p0.x} ${p0.y}, ${midX} ${(p0.y + p1.y) / 2}`;
+                path += ` Q ${midX} ${(p0.y + p1.y) / 2}, ${p1.x} ${p1.y}`;
+            }
+            document.getElementById('monthCurve').setAttribute('d', path);
+            
+            // 只绘制部分数据点
+            const sampleIndices = [0, 7, 14, 21, 29];
+            const pointsHtml = sampleIndices.map(i => {
+                const p = points[i];
+                return `<circle cx="${p.x}" cy="${p.y}" r="2.5" fill="#7DD3FC"/>`;
+            }).join('');
+            document.getElementById('monthPoints').innerHTML = pointsHtml;
+        }
+        
+        // 渲染月历（可点击）
+        function renderMonthCalendar(){
+            const cal = document.getElementById('calGrid');
+            const now = new Date();
+            const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
+            
+            // 随机颜色分布：蓝色(calm)最多，橘色(happy)第二，红紫较少
+            const colorPool = [
+                'calm','calm','calm','calm','calm','calm','calm','calm',  // 8个蓝色
+                'happy','happy','happy','happy','happy',  // 5个橘色
+                'sad','sad',  // 2个红色
+                'anxious','anxious'  // 2个紫色
+            ];
+            
+            let html = '';
+            for(let i = 0; i < firstDay; i++) html += '<div></div>';
+            for(let d = 1; d <= totalDays; d++) {
+                // 随机从颜色池中取一个颜色
+                const color = colorPool[Math.floor(Math.random() * colorPool.length)];
+                html += `<div onclick="showDayDetail(${d})" class="aspect-square rounded-lg bg-${color}/30 flex items-center justify-center text-[10px] txtPrimary cursor-pointer hover:bg-${color}/50 transition">${d}</div>`;
+            }
+            cal.innerHTML = html;
+        }
+        
+        // 显示日期详情
+        function showDayDetail(day){
+            const detail = document.getElementById('dayDetail');
+            const now = new Date();
+            const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+            
+            // 根据点击的日期计算星期几
+            const clickedDate = new Date(now.getFullYear(), now.getMonth(), day);
+            const weekday = weekdays[clickedDate.getDay()];
+            
+            document.getElementById('detailDate').textContent = `${now.getMonth()+1}月${day}日 ${weekday}`;
+            detail.classList.remove('hidden');
+            
+            // 简单的确定性伪随机（基于日期）
+            const seededRandom = (offset) => {
+                const num = Math.sin(day * 9999 + offset * 7777) * 10000;
+                return num - Math.floor(num);
+            };
+            
+            // 生成当日曲线数据
+            const baseValue = 25 + seededRandom(1) * 30;
+            const dayData = [0,1,2,3,4,5,6,7].map(i => baseValue + Math.sin(i * 0.7 + day) * 12);
+            
+            const width = 180;
+            const height = 40;
+            const startX = 10;
+            
+            const points = dayData.map((v, i) => {
+                const x = startX + (i / (dayData.length - 1)) * width;
+                const y = 50 - (v / 60) * height;
+                return {x, y};
+            });
+            
+            let path = `M ${points[0].x} ${points[0].y}`;
+            for(let i = 1; i < points.length; i++){
+                path += ` L ${points[i].x} ${points[i].y}`;
+            }
+            document.getElementById('dayCurve').setAttribute('d', path);
+            
+            // 动态生成情绪标签
+            const emotions = ['happy', 'calm', 'sad', 'anxious'];
+            const emotionLabels = {happy: '开心', calm: '平静', sad: '低落', anxious: '焦虑'};
+            const numTags = 1 + Math.floor(seededRandom(2) * 3);
+            const selectedEmotions = [];
+            const used = new Set();
+            for(let i = 0; i < numTags; i++) {
+                const idx = Math.floor(seededRandom(3 + i) * emotions.length);
+                if(!used.has(idx)) {
+                    used.add(idx);
+                    selectedEmotions.push(emotions[idx]);
+                }
+            }
+            
+            const tagsContainer = document.getElementById('dayEmotionTags');
+            tagsContainer.innerHTML = selectedEmotions.map(e => 
+                `<span class="px-2 py-0.5 rounded-full bg-${e}/30 text-${e} text-[10px]">${emotionLabels[e]}</span>`
+            ).join('');
+            
+            // 随机显示预警记录（概率40%）
+            const warningDiv = document.getElementById('dayWarning');
+            if(seededRandom(10) < 0.4) {
+                const times = ['09:30', '11:00', '14:00', '16:30', '20:00'];
+                const reasons = ['连续工作3小时', '未记录情绪超过4小时', '压力值持续较高', '深夜活跃度异常', '长时间未休息'];
+                const idx = Math.floor(seededRandom(11) * times.length);
+                const type = seededRandom(12) > 0.5 ? '焦虑' : '低落';
+                warningDiv.innerHTML = `<span class="text-orange-500">⚠️ ${times[idx]} 触发轻度${type}预警（${reasons[idx]}）</span>`;
+                warningDiv.classList.remove('hidden');
+            } else {
+                warningDiv.classList.add('hidden');
+            }
+            
+            // 随机显示温暖小事（优先从能量罐读取，否则显示默认）
+            const memoryDiv = document.getElementById('dayMemory');
+            if(data.memories && data.memories.length > 0 && seededRandom(20) < 0.6) {
+                const memIdx = Math.floor(seededRandom(21) * data.memories.length);
+                const mem = data.memories[memIdx];
+                memoryDiv.innerHTML = `<div class="text-[10px] txtSecondary mb-1">💝 关联温暖小事</div><div class="text-xs txtPrimary">${mem.c}</div>`;
+            } else {
+                const defaultMemories = [
+                    '午后的阳光很温暖，心情也跟着好起来了',
+                    '收到朋友的消息，一整天都很开心',
+                    '完成了今天的计划任务，很有成就感',
+                    '吃到了一份好吃的早餐，元气满满',
+                    '路上遇到可爱的小狗，心情愉悦'
+                ];
+                const memIdx = Math.floor(seededRandom(22) * defaultMemories.length);
+                memoryDiv.innerHTML = `<div class="text-[10px] txtSecondary mb-1">💝 关联温暖小事</div><div class="text-xs txtPrimary">${defaultMemories[memIdx]}</div>`;
+            }
+        }
+        
+        // 关闭日期详情
+        function closeDayDetail(){
+            document.getElementById('dayDetail').classList.add('hidden');
+        }
+        
+        init();
+    </script>
+</body>
+</html>
