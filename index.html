@@ -1237,9 +1237,9 @@
             hoverArea.innerHTML = pts.map((p, i) => {
                 const x = 20 + (i / (pts.length - 1)) * 260;
                 const y = 100 - ((p.p - minP) / range) * 80;
-                const time = new Date(p.t).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'});
-                return `<rect x="${x-15}" y="10" width="30" height="100" fill="transparent" 
-                    onmouseenter="showChartTooltip(event, ${i}, '${time}', '${emotionColors[p.e].l}', ${p.p})" 
+                const time = new Date(p.ts).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'});
+                return `<rect x="${x-15}" y="10" width="30" height="100" fill="transparent"
+                    onmouseenter="showChartTooltip(event, ${i}, '${time}', '${emotionColors[p.e].l}', ${p.p})"
                     onmouseleave="hideChartTooltip()"/>`;
             }).join('');
         }
@@ -1272,7 +1272,7 @@
             const pts = data.emotions.slice(-12);
             if(pts[idx]) {
                 const p = pts[idx];
-                const time = new Date(p.t).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'});
+                const time = new Date(p.ts).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'});
                 alert(`${time}\n情绪: ${emotionColors[p.e].l}\n压力值: ${p.p}`);
             }
         }
