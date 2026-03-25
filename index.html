@@ -136,6 +136,10 @@
         .warm-tip-show { animation: tipPopIn 0.5s ease-out; }
         @keyframes tipPopIn { 0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.05); } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
         
+        /* 背景图片淡入动画 */
+        .bg-image-fade { animation: bgFadeIn 0.6s ease-out; }
+        @keyframes bgFadeIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
+        
         @media (max-width: 768px) { .mobile-nav { display: flex; } .desktop-sidebar { display: none; } }
         @media (min-width: 769px) { .mobile-nav { display: none; } }
     </style>
@@ -187,8 +191,13 @@
                         <div id="particles" class="absolute inset-0 pointer-events-none"></div>
                     </div>
                     <!-- 舒缓文字显示区域 -->
-                    <div id="relaxText" class="hidden mt-3 text-center px-4 py-2 bg-white/60 rounded-xl backdrop-blur-sm">
+                    <div id="relaxText" class="hidden mt-3 text-center px-4 py-2 bg-white/60 rounded-xl backdrop-blur-sm relative z-10">
                         <span id="relaxTextContent" class="text-sm txtPrimary"></span>
+                    </div>
+                    <!-- 拍一拍后的大幅背景配图 -->
+                    <div id="anxiousBgImage" class="hidden mt-4 w-full max-w-sm h-48 rounded-2xl overflow-hidden shadow-lg relative z-0">
+                        <img id="anxiousImage" class="w-full h-full object-cover" src="" alt="治愈背景图">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
                     </div>
                     <div class="mt-4 text-center">
                         <span id="emotionLabel" class="text-xl font-medium txtPrimary">平静</span>
@@ -823,12 +832,12 @@
             m.setAttribute('d',e==='happy'?'M90 62 Q100 72 110 62':e==='sad'?'M90 68 Q100 58 110 68':e==='anxious'?'M92 64 L98 64 L100 62 L102 64 L108 64':'M90 62 Q100 70 110 62');
         }
         
-        // 焦虑舒缓建议（简短版）
+        // 焦虑舒缓建议及对应的配图
         const anxiousRelaxTips = [
-            '去深呼吸三次吧',
-            '听一首喜欢的歌',
-            '出门走一走放松一下',
-            '喝杯温水，慢慢放松'
+            { text: '去深呼吸三次吧', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&h=400&fit=crop' },
+            { text: '听一首喜欢的歌', image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&h=400&fit=crop' },
+            { text: '出门走一走放松一下', image: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=600&h=400&fit=crop' },
+            { text: '喝杯温水，慢慢放松', image: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=600&h=400&fit=crop' }
         ];
 
         // 拍一拍动画 - 根据情绪不同做不同效果
@@ -871,19 +880,28 @@
                     mouth.setAttribute('d', 'M92 64 L98 64 L100 62 L102 64 L108 64');
                 },5000);
                 
-                // 显示舒缓文字，停留时间更长
+                // 显示舒缓文字和配图，停留时间更长
                 const relaxText = document.getElementById('relaxText');
                 const relaxContent = document.getElementById('relaxTextContent');
-                const tip = anxiousRelaxTips[Math.floor(Math.random() * anxiousRelaxTips.length)];
-                relaxContent.textContent = tip;
+                const anxiousBg = document.getElementById('anxiousBgImage');
+                const anxiousImage = document.getElementById('anxiousImage');
+                const tipData = anxiousRelaxTips[Math.floor(Math.random() * anxiousRelaxTips.length)];
+                relaxContent.textContent = tipData.text;
+                anxiousImage.src = tipData.image;
+                
+                // 显示文字和配图,添加淡入动画
                 relaxText.classList.remove('hidden');
                 relaxText.classList.add('relax-text');
+                anxiousBg.classList.remove('hidden');
+                anxiousBg.classList.add('bg-image-fade');
                 
-                // 5秒后隐藏文字（延长显示时间）
+                // 6秒后隐藏文字和配图
                 setTimeout(()=>{
                     relaxText.classList.add('hidden');
                     relaxText.classList.remove('relax-text');
-                },5000);
+                    anxiousBg.classList.add('hidden');
+                    anxiousBg.classList.remove('bg-image-fade');
+                },6000);
                 
                 // 去掉金光扩散效果
             }
