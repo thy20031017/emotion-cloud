@@ -79,7 +79,7 @@
         }
         .sun-particle { position: absolute; font-size: 28px; animation: sunRise 1.5s ease-out forwards; pointer-events: none; }
         
-        /* 焦虑云 - 震动收缩 + 颜色柔和 */
+        /* 焦虑云 - 震动收缩 + 颜色柔和变淡 */
         @keyframes anxiousVibrate {
             0%, 100% { transform: scale(1) translateX(0); }
             10% { transform: scale(0.95) translateX(-2px); }
@@ -93,6 +93,20 @@
             90% { transform: scale(0.96) translateX(-1px); }
         }
         .cloud-anxious-tap { animation: anxiousVibrate 1.2s ease-in-out; }
+        
+        /* 焦虑云 - 嘴角微笑动画 */
+        @keyframes smileCurve {
+            0% { d: path('M92 64 L98 64 L100 62 L102 64 L108 64'); }
+            100% { d: path('M90 62 Q100 68 110 62'); }
+        }
+        
+        /* 低落云 - 温柔下雨动画 */
+        @keyframes sadRain {
+            0% { opacity: 0; transform: translateY(-15px); }
+            20% { opacity: 0.7; }
+            100% { opacity: 0; transform: translateY(70px); }
+        }
+        .sad-rain { position: absolute; width: 2px; height: 18px; background: linear-gradient(to bottom, transparent, rgba(167,139,250,0.5)); border-radius: 50%; animation: sadRain 1.8s linear forwards; pointer-events: none; }
         
         /* 低落云 - 微微下落后上浮 */
         @keyframes sadFloat {
@@ -831,25 +845,33 @@
             
             if(currentEmotion === 'anxious'){
                 // ===== 焦虑云 (红色) =====
-                // 动画：震动收缩 + 颜色柔和变淡
+                // 动画：震动收缩 + 颜色缓慢变淡为淡红
                 cloudSvg.classList.add('cloud-anxious-tap');
                 
-                // 颜色变化：深红 -> 浅红 -> 淡红（不变成紫色）
-                document.getElementById('gradTop').setAttribute('stop-color','#F87171');
-                document.getElementById('gradBot').setAttribute('stop-color','#FCA5A5');
+                // 嘴角慢慢向上弯，出现浅浅微笑
+                const mouth = document.getElementById('mouth');
+                mouth.style.transition = 'd 2s ease';
+                mouth.setAttribute('d', 'M90 62 Q100 68 110 62');
                 
+                // 颜色变化：深红 -> 慢慢变淡为淡红（放慢速度，更柔和）
+                document.getElementById('gradTop').setAttribute('stop-color','#FCA5A5');
+                document.getElementById('gradBot').setAttribute('stop-color','#FECACA');
+                
+                // 1.5秒后进一步变淡
                 setTimeout(()=>{
                     document.getElementById('gradTop').setAttribute('stop-color','#FECACA');
-                    document.getElementById('gradBot').setAttribute('stop-color','#FEBEBE');
-                },600);
+                    document.getElementById('gradBot').setAttribute('stop-color','#FED7D7');
+                },1500);
                 
-                // 2.5秒后恢复红色
+                // 停在淡红色，不变紫色（5秒后恢复）
                 setTimeout(()=>{
                     document.getElementById('gradTop').setAttribute('stop-color','#EF4444');
                     document.getElementById('gradBot').setAttribute('stop-color','#DC2626');
-                },2500);
+                    // 嘴巴恢复直线条
+                    mouth.setAttribute('d', 'M92 64 L98 64 L100 62 L102 64 L108 64');
+                },5000);
                 
-                // 显示舒缓文字
+                // 显示舒缓文字，停留时间更长
                 const relaxText = document.getElementById('relaxText');
                 const relaxContent = document.getElementById('relaxTextContent');
                 const tip = anxiousRelaxTips[Math.floor(Math.random() * anxiousRelaxTips.length)];
@@ -857,39 +879,33 @@
                 relaxText.classList.remove('hidden');
                 relaxText.classList.add('relax-text');
                 
-                // 3秒后隐藏文字
+                // 5秒后隐藏文字（延长显示时间）
                 setTimeout(()=>{
                     relaxText.classList.add('hidden');
                     relaxText.classList.remove('relax-text');
-                },3000);
+                },5000);
                 
-                // 金光效果
-                const g=document.getElementById('goldenLayer');
-                g.classList.remove('golden-pulse');void g.offsetWidth;g.classList.add('golden-pulse');
+                // 去掉金光扩散效果
             }
             else if(currentEmotion === 'sad'){
                 // ===== 低落云 (灰紫色) =====
-                // 动画：微微下落后上浮 + 飘小光点、糖果
+                // 动画：微微下落后上浮 + 温柔下雨 + 弹出能量罐小确幸文字
                 wrapper.classList.add('cloud-sad-tap');
                 
-                // 飘出小光点、糖果
-                const sadParticles = ['⭐','✨','💫','🍬','💝','🌟','🫧','💧'];
-                for(let i=0;i<8;i++){
+                // 温柔下雨动画
+                const rainContainer = document.getElementById('rainContainer');
+                for(let i=0;i<10;i++){
                     setTimeout(()=>{
                         const el=document.createElement('div');
-                        el.className='star-particle';
-                        el.textContent=sadParticles[Math.floor(Math.random()*sadParticles.length)];
-                        el.style.left=(15+Math.random()*70)+'%';
-                        el.style.top=(25+Math.random()*40)+'%';
-                        particles.appendChild(el);
-                        setTimeout(()=>el.remove(),1500);
-                    },i*120);
+                        el.className='sad-rain';
+                        el.style.left=(25+Math.random()*50)+'%';
+                        el.style.top='75%';
+                        rainContainer.appendChild(el);
+                        setTimeout(()=>el.remove(),2000);
+                    },i*250);
                 }
                 
-                // 金光效果
-                const g=document.getElementById('goldenLayer');
-                g.classList.remove('golden-pulse');void g.offsetWidth;g.classList.add('golden-pulse');
-                
+                // 去掉糖果、小光点、小水滴动画
                 // 从能量罐抽取温暖记忆（保持不变）
                 setTimeout(()=>showMemoryTip(),600);
             }
@@ -932,21 +948,8 @@
             }
             else{
                 // ===== 平静云 (淡蓝色) =====
-                // 动画：左右缓慢漂浮、轻轻晃动 + 小雨滴
+                // 动画：左右缓慢漂浮、轻轻晃动（去掉下雨动画）
                 cloudSvg.classList.add('cloud-calm-tap');
-                
-                // 落下温柔小雨滴
-                const rainContainer = document.getElementById('rainContainer');
-                for(let i=0;i<6;i++){
-                    setTimeout(()=>{
-                        const el=document.createElement('div');
-                        el.className='gentle-rain';
-                        el.style.left=(30+Math.random()*40)+'%';
-                        el.style.top='80%';
-                        rainContainer.appendChild(el);
-                        setTimeout(()=>el.remove(),1500);
-                    },i*200);
-                }
                 
                 // 平静的星光
                 const calmParticles = ['💫','✨','🌟','🪐'];
