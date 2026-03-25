@@ -1208,23 +1208,23 @@
 
         // 更新图表
         function updateChart(){
-            // 使用指定的今日情绪数据(从早到晚,平滑连续)
+            // 使用指定的今日情绪数据(从早到晚,有自然小波动)
             const today = new Date();
             const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
             const pts = [
-                {ts: todayStart + 7*3600000, p: 32, e: 'calm'},
-                {ts: todayStart + 8*3600000, p: 36, e: 'calm'},
-                {ts: todayStart + 9*3600000, p: 41, e: 'calm'},
-                {ts: todayStart + 10*3600000, p: 45, e: 'happy'},
-                {ts: todayStart + 11*3600000, p: 50, e: 'happy'},
-                {ts: todayStart + 12*3600000, p: 55, e: 'happy'},
-                {ts: todayStart + 13*3600000, p: 60, e: 'anxious'},
-                {ts: todayStart + 14*3600000, p: 64, e: 'anxious'},
-                {ts: todayStart + 15*3600000, p: 68, e: 'anxious'},
-                {ts: todayStart + 16*3600000, p: 63, e: 'anxious'},
-                {ts: todayStart + 17*3600000, p: 57, e: 'happy'},
-                {ts: todayStart + 23*3600000, p: 50, e: 'happy'}
+                {ts: todayStart + 7*3600000, p: 28, e: 'calm'},
+                {ts: todayStart + 8*3600000, p: 35, e: 'calm'},
+                {ts: todayStart + 9*3600000, p: 29, e: 'calm'},
+                {ts: todayStart + 10*3600000, p: 49, e: 'happy'},
+                {ts: todayStart + 11*3600000, p: 38, e: 'happy'},
+                {ts: todayStart + 12*3600000, p: 55, e: 'anxious'},
+                {ts: todayStart + 13*3600000, p: 62, e: 'anxious'},
+                {ts: todayStart + 14*3600000, p: 48, e: 'happy'},
+                {ts: todayStart + 15*3600000, p: 72, e: 'anxious'},
+                {ts: todayStart + 16*3600000, p: 55, e: 'happy'},
+                {ts: todayStart + 17*3600000, p: 61, e: 'happy'},
+                {ts: todayStart + 23*3600000, p: 39, e: 'calm'}
             ];
 
             if(pts.length < 2) return;
