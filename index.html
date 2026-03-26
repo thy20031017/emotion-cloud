@@ -12,7 +12,7 @@
                 extend: {
                     colors: {
                         cloud: '#E2E8F0', calm: '#7DD3FC', happy: '#FDBA74', sad: '#C4B5FD',
-                        anxious: '#EF4444', gold: '#FCD34D', bgPrimary: '#F8FAFC', bgSecondary: '#F1F5F9',
+                        anxious: '#EF4444', angry: '#64748B', gold: '#FCD34D', bgPrimary: '#F8FAFC', bgSecondary: '#F1F5F9',
                         txtPrimary: '#1E293B', txtSecondary: '#64748B',
                     },
                     fontFamily: { sans: ['Noto Sans SC', 'sans-serif'] },
@@ -93,12 +93,27 @@
             90% { transform: scale(0.96) translateX(-1px); }
         }
         .cloud-anxious-tap { animation: anxiousVibrate 1.2s ease-in-out; }
-        
+
         /* 焦虑云 - 嘴角微笑动画 */
         @keyframes smileCurve {
             0% { d: path('M92 64 L98 64 L100 62 L102 64 L108 64'); }
             100% { d: path('M90 62 Q100 68 110 62'); }
         }
+
+        /* 生气云 - 愤怒颤抖动画 */
+        @keyframes angryShake {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            10% { transform: translateX(-3px) rotate(-1deg); }
+            20% { transform: translateX(3px) rotate(1deg); }
+            30% { transform: translateX(-2px) rotate(-1deg); }
+            40% { transform: translateX(2px) rotate(1deg); }
+            50% { transform: translateX(-1px) rotate(0deg); }
+            60% { transform: translateX(1px) rotate(0deg); }
+            70% { transform: translateX(-2px) rotate(-0.5deg); }
+            80% { transform: translateX(1px) rotate(0.5deg); }
+            90% { transform: translateX(0px) rotate(0deg); }
+        }
+        .cloud-angry-tap { animation: angryShake 0.8s ease-in-out; }
         
         /* 低落云 - 温柔下雨动画 */
         @keyframes sadRain {
@@ -211,6 +226,7 @@
                     <button onclick="setEmotion('happy')" class="px-3 py-1.5 rounded-full bg-happy/20 hover:bg-happy/40 text-happy text-xs font-medium transition">😊 开心</button>
                     <button onclick="setEmotion('sad')" class="px-3 py-1.5 rounded-full bg-sad/20 hover:bg-sad/40 text-sad text-xs font-medium transition">😢 低落</button>
                     <button onclick="setEmotion('anxious')" class="px-3 py-1.5 rounded-full bg-anxious/20 hover:bg-anxious/40 text-anxious text-xs font-medium transition">😰 焦虑</button>
+                    <button onclick="setEmotion('angry')" class="px-3 py-1.5 rounded-full bg-[#64748B]/20 hover:bg-[#64748B]/40 text-[#64748B] text-xs font-medium transition">😠 生气</button>
                 </div>
 
                 <!-- 今日摘要 -->
@@ -697,12 +713,13 @@
     <script>
         const STORAGE_KEY = 'emotionCloudData';
         // 情绪颜色：平静=淡蓝、开心=暖橙、低落=灰紫、焦虑=红色
-        const emotionColors = { 
-            calm: {g:['#7DD3FC','#38BDF8'],l:'平静',label:'淡蓝'}, 
-            happy: {g:['#FDBA74','#FB923C'],l:'开心',label:'暖橙'}, 
-            sad: {g:['#C4B5FD','#A78BFA'],l:'低落',label:'灰紫'}, 
-            anxious: {g:['#EF4444','#DC2626'],l:'焦虑',label:'红色'}, 
-            neutral: {g:['#E2E8F0','#CBD5E1'],l:'一般',label:'灰白'} 
+        const emotionColors = {
+            calm: {g:['#7DD3FC','#38BDF8'],l:'平静',label:'淡蓝'},
+            happy: {g:['#FDBA74','#FB923C'],l:'开心',label:'暖橙'},
+            sad: {g:['#C4B5FD','#A78BFA'],l:'低落',label:'灰紫'},
+            anxious: {g:['#EF4444','#DC2626'],l:'焦虑',label:'红色'},
+            angry: {g:['#64748B','#475569'],l:'生气',label:'深灰'},
+            neutral: {g:['#E2E8F0','#CBD5E1'],l:'一般',label:'灰白'}
         };
         // 温暖提示语
         const warmTips = ['今天很棒！你已经很努力了', '给自己一个拥抱吧', '记得，你很重要', '每一步都在前进', '休息一下也没关系', '你是独一无二的', '今天也要开心呀', '相信自己的力量', '一切都会好起来的', '给自己一个微笑'];
@@ -814,8 +831,10 @@
         
         function setEmotion(e){
             data.c=e;
-            // 焦虑时压力更高，其他更低
-            data.p=e==='anxious'?Math.floor(Math.random()*30+65):Math.floor(Math.random()*40+20);
+            // 不同情绪对应的压力值
+            if(e==='anxious') data.p=Math.floor(Math.random()*30+65);
+            else if(e==='angry') data.p=Math.floor(Math.random()*25+75);
+            else data.p=Math.floor(Math.random()*40+20);
             data.v=Math.random()*1.4-0.7;
             data.a=e==='happy'?Math.floor(Math.random()*30+50):Math.floor(Math.random()*40+20);
             data.emotions.push({ts:Date.now(),e:e,p:data.p,v:data.v,a:data.a});
@@ -829,7 +848,17 @@
             document.getElementById('emotionLabel').textContent=c.l;
             // 更新嘴巴表情
             const m=document.getElementById('mouth');
-            m.setAttribute('d',e==='happy'?'M90 62 Q100 72 110 62':e==='sad'?'M90 68 Q100 58 110 68':e==='anxious'?'M92 64 L98 64 L100 62 L102 64 L108 64':'M90 62 Q100 70 110 62');
+            if(e==='happy'){
+                m.setAttribute('d','M90 62 Q100 72 110 62');
+            } else if(e==='sad'){
+                m.setAttribute('d','M90 68 Q100 58 110 68');
+            } else if(e==='anxious'){
+                m.setAttribute('d','M92 64 L98 64 L100 62 L102 64 L108 64');
+            } else if(e==='angry'){
+                m.setAttribute('d','M90 68 Q100 56 110 68');
+            } else {
+                m.setAttribute('d','M90 62 Q100 70 110 62');
+            }
         }
         
         // 焦虑舒缓建议及对应的配图
@@ -840,6 +869,14 @@
             { text: '喝杯温水，慢慢放松', image: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=600&h=400&fit=crop' }
         ];
 
+        // 生气云冷静建议
+        const angryCalmTips = [
+            '先深呼吸3次，慢慢呼气',
+            '喝一口凉水，让自己缓一缓',
+            '暂时离开让你生气的环境，走一走',
+            '在心里数到10，再开口说话'
+        ];
+
         // 拍一拍动画 - 根据情绪不同做不同效果
         function tapCloud(evt){
             const cloudSvg = document.getElementById('cloudSvg');
@@ -848,11 +885,48 @@
             const currentEmotion = data.c;
             
             // 移除之前的动画类
-            cloudSvg.classList.remove('cloud-calm-tap','cloud-happy-tap','cloud-anxious-tap','cloud-sad-tap');
+            cloudSvg.classList.remove('cloud-calm-tap','cloud-happy-tap','cloud-anxious-tap','cloud-sad-tap','cloud-angry-tap');
             wrapper.classList.remove('cloud-sad-tap');
             void cloudSvg.offsetWidth; // 强制重绘
-            
-            if(currentEmotion === 'anxious'){
+
+            if(currentEmotion === 'angry'){
+                // ===== 生气云 (深灰色) =====
+                // 动画：快速小幅度震动 + 慢慢收缩变浅灰 + 表情从愤怒变平静
+                cloudSvg.classList.add('cloud-angry-tap');
+
+                // 表情从愤怒(皱眉)慢慢变回平静(嘴角放平)
+                const mouth = document.getElementById('mouth');
+                mouth.style.transition = 'd 3s ease';
+                mouth.setAttribute('d', 'M90 62 Q100 70 110 62');
+
+                // 颜色变化：深灰 -> 慢慢变浅灰
+                document.getElementById('gradTop').setAttribute('stop-color','#94A3B8');
+                document.getElementById('gradBot').setAttribute('stop-color','#CBD5E1');
+
+                // 5秒后恢复深灰色和愤怒表情
+                setTimeout(()=>{
+                    document.getElementById('gradTop').setAttribute('stop-color','#64748B');
+                    document.getElementById('gradBot').setAttribute('stop-color','#475569');
+                    mouth.setAttribute('d', 'M90 68 Q100 56 110 68');
+                },5000);
+
+                // 显示冷静建议,柔和淡入淡出
+                const relaxText = document.getElementById('relaxText');
+                const relaxContent = document.getElementById('relaxTextContent');
+                const tip = angryCalmTips[Math.floor(Math.random() * angryCalmTips.length)];
+                relaxContent.textContent = tip;
+                relaxText.classList.remove('hidden');
+                relaxText.classList.add('relax-text');
+
+                // 6秒后隐藏文字
+                setTimeout(()=>{
+                    relaxText.classList.add('hidden');
+                    relaxText.classList.remove('relax-text');
+                },6000);
+
+                // 不散发金光、不出现雨滴/糖果
+            }
+            else if(currentEmotion === 'anxious'){
                 // ===== 焦虑云 (红色) =====
                 // 动画：震动收缩 + 颜色缓慢变淡为淡红
                 cloudSvg.classList.add('cloud-anxious-tap');
